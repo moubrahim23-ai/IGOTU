@@ -208,3 +208,86 @@ function calculer() {
 
 // Initialisation au chargement
 window.onload = calculer;
+.page-simulation {
+    padding: 60px 0;
+    background-color: #f7f9fa;
+    scroll-margin-top: 80px; /* Pour que le défilement s'arrête au bon endroit */
+}
+
+.sim-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.sim-stepper {
+    display: flex;
+    background: #003366; /* Bleu Crédit Mutuel */
+    color: white;
+}
+
+.sim-step {
+    flex: 1;
+    padding: 15px;
+    text-align: center;
+    font-size: 14px;
+    opacity: 0.5;
+}
+
+.sim-step.active {
+    opacity: 1;
+    background: #e2001a; /* Rouge Crédit Mutuel pour l'accentuation */
+    font-weight: bold;
+}
+
+.sim-main-layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 30px;
+    padding: 30px;
+}
+
+.step-content { display: none; }
+.step-content.active { display: block; }
+
+.btn-orange-sim {
+    background: #e2001a;
+    color: white;
+    border: none;
+    padding: 15px 25px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+let etapeActuelle = 1;
+
+function changerEtape(direction) {
+    // Masquer l'étape actuelle
+    document.getElementById(`step-${etapeActuelle}`).classList.remove('active');
+    document.querySelector(`[data-step="${etapeActuelle}"]`).classList.remove('active');
+
+    etapeActuelle += direction;
+
+    // Afficher la nouvelle étape
+    document.getElementById(`step-${etapeActuelle}`).classList.add('active');
+    document.querySelector(`[data-step="${etapeActuelle}"]`).classList.add('active');
+
+    // Gestion des boutons
+    document.getElementById('btnPrev').style.display = (etapeActuelle === 1) ? 'none' : 'inline-block';
+    document.getElementById('btnNext').innerText = (etapeActuelle === 5) ? 'TERMINER' : 'ÉTAPE SUIVANTE';
+}
+
+function calculerImmo() {
+    const prix = document.getElementById('prix-bien').value;
+    const apport = document.getElementById('apport').value;
+    
+    document.getElementById('val-apport').innerText = Number(apport).toLocaleString();
+    
+    // Calcul de base
+    const emprunt = prix - apport;
+    document.getElementById('res-total').innerText = (emprunt > 0 ? emprunt : 0).toLocaleString() + " €";
+}
+        

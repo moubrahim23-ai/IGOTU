@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulateur Immo - Complet</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <header class="header">
+        <h1>Simulation <span>Prêt Immobilier</span></h1>
+        <p>Estimation <strong>rapide</strong> de votre capacité d'emprunt</p>
+    </header>
+
+    <nav class="stepper" id="stepper">
+        <div class="step active" data-step="1">1. Projet</div>
+        <div class="step" data-step="2">2. Apport</div>
+        <div class="step" data-step="3">3. Revenus</div>
+        <div class="step" data-step="4">4. Charges</div>
+        <div class="step" data-step="5">5. Situation</div>
+    </nav>
+
+    <div class="main-layout">
+        <section class="form-container">
+            
+            <div class="form-step active" id="step1">
+                <h2>Votre Projet</h2>
+                <div class="input-group">
+                    <label>Type de bien</label>
+                    <div class="toggle-group">
+                        <button class="btn-toggle active" onclick="updateVal('bien', 'Ancien')">Ancien</button>
+                        <button class="btn-toggle" onclick="updateVal('bien', 'Neuf')">Neuf</button>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Prix du bien estimé (€)</label>
+                    <input type="number" id="input-prix" value="250000" oninput="calculer()">
+                </div>
+            </div>
+
+            <div class="form-step" id="step2">
+                <h2>Votre Apport</h2>
+                <p>Combien pouvez-vous injecter personnellement ?</p>
+                <div class="input-group">
+                    <input type="range" min="0" max="100000" step="5000" id="input-apport" value="25000" oninput="calculer()">
+                    <div class="range-val"><span id="val-apport">25 000</span> €</div>
+                </div>
+            </div>
+
+            <div class="form-step" id="step3">
+                <h2>Vos Revenus</h2>
+                <div class="input-group">
+                    <label>Revenus nets mensuels (foyer)</label>
+                    <input type="number" id="input-revenus" value="3500" oninput="calculer()">
+                </div>
+            </div>
+
+            <div class="form-step" id="step4">
+                <h2>Vos Charges</h2>
+                <div class="input-group">
+                    <label>Loyer ou crédits en cours</label>
+                    <input type="number" id="input-charges" value="0" oninput="calculer()">
+                </div>
+            </div>
+
+            <div class="form-step" id="step5">
+                <h2>Votre Situation</h2>
+                <div class="input-group">
+                    <label>Profession</label>
+                    <select id="input-job">
+                        <option value="cdi">CDI / Fonctionnaire</option>
+                        <option value="independant">Indépendant / Libéral</option>
+                        <option value="cdd">CDD / Intérim</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="nav-buttons">
+                <button id="prevBtn" class="btn-secondary" onclick="changeStep(-1)" style="display:none;">Précédent</button>
+                <button id="nextBtn" class="btn-primary" onclick="changeStep(1)">ÉTAPE SUIVANTE</button>
+            </div>
+        </section>
+
+        <aside class="summary-card">
+            <h3>Résumé</h3>
+            <div class="res-item">
+                <small>Montant finançable</small>
+                <div class="big-price"><span id="res-montant">230 000</span> €</div>
+            </div>
+            <div class="res-item highlight">
+                <small>Mensualité estimée</small>
+                <div class="blue-price"><span id="res-mensualite">950</span> € / mois</div>
+            </div>
+            <hr>
+            <ul class="details-list">
+                <li>Durée : <strong>25 ans</strong></li>
+                <li>Taux : <strong>1,20 %</strong></li>
+                <li>Apport : <strong id="res-apport">25 000 €</strong></li>
+            </ul>
+            <button class="btn-orange-full">OBTENIR UNE OFFRE !</button>
+        </aside>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
+:root {
+    --primary: #2c5a94;
+    --orange: #f58220;
+    --bg: #f4f7f9;
+}
+
+body { font-family: sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 40px; }
+.container { width: 900px; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); overflow: hidden; }
+
+.header { padding: 20px 40px; background: linear-gradient(to right, #fff, #eef5ff); }
+.header h1 { margin: 0; color: #1a3a5f; }
+.header h1 span { font-weight: 300; }
+
+/* Stepper */
+.stepper { display: flex; background: #e2eaf1; }
+.step { flex: 1; padding: 15px; text-align: center; color: #666; font-size: 14px; opacity: 0.6; }
+.step.active { background: #1a3a5f; color: white; opacity: 1; font-weight: bold; }
+
+/* Layout */
+.main-layout { display: grid; grid-template-columns: 1fr 300px; gap: 30px; padding: 40px; }
+.form-step { display: none; }
+.form-step.active { display: block; animation: fadeIn 0.3s; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+.input-group { margin-bottom: 25px; }
+label { display: block; font-weight: bold; margin-bottom: 10px; color: #444; }
+input[type="number"], select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; }
+
+/* Boutons */
+.toggle-group { display: flex; gap: 10px; }
+.btn-toggle { flex: 1; padding: 10px; border: 1px solid #ccc; background: white; cursor: pointer; border-radius: 6px; }
+.btn-toggle.active { background: var(--primary); color: white; }
+
+.nav-buttons { display: flex; gap: 10px; margin-top: 30px; }
+.btn-primary { background: var(--orange); color: white; border: none; padding: 15px 30px; border-radius: 6px; font-weight: bold; cursor: pointer; flex: 2; box-shadow: 0 4px 0 #d46d14; }
+.btn-secondary { background: #eee; border: none; padding: 15px 20px; border-radius: 6px; cursor: pointer; flex: 1; }
+
+/* Sidebar */
+.summary-card { border: 1px solid #ddd; border-radius: 10px; padding: 20px; background: #fafafa; }
+.big-price { font-size: 26px; font-weight: 800; color: #1a3a5f; }
+.blue-price { font-size: 22px; font-weight: bold; color: var(--primary); }
+.btn-orange-full { width: 100%; background: var(--orange); border: none; color: white; padding: 15px; border-radius: 6px; font-weight: bold; margin-top: 20px; cursor: pointer; }
+.details-list { list-style: none; padding: 0; margin-top: 20px; font-size: 14px; }
+let currentStep = 1;
+
+function changeStep(n) {
+    const steps = document.querySelectorAll('.form-step');
+    const stepIndicators = document.querySelectorAll('.step');
+
+    // Cacher l'étape actuelle
+    steps[currentStep - 1].classList.remove('active');
+    stepIndicators[currentStep - 1].classList.remove('active');
+
+    // Changer l'index
+    currentStep += n;
+
+    // Gérer les limites
+    if (currentStep > 5) currentStep = 5;
+    if (currentStep < 1) currentStep = 1;
+
+    // Afficher la nouvelle étape
+    steps[currentStep - 1].classList.add('active');
+    stepIndicators[currentStep - 1].classList.add('active');
+
+    // Gérer la visibilité des boutons
+    document.getElementById('prevBtn').style.display = (currentStep === 1) ? 'none' : 'inline-block';
+    document.getElementById('nextBtn').innerText = (currentStep === 5) ? 'TERMINER' : 'ÉTAPE SUIVANTE';
+}
+
+function updateVal(type, val) {
+    // Juste pour le visuel des boutons toggle
+    event.target.parentNode.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+}
+
+function calculer() {
+    // Récupération des valeurs
+    const prix = parseFloat(document.getElementById('input-prix').value) || 0;
+    const apport = parseFloat(document.getElementById('input-apport').value) || 0;
+    const revenus = parseFloat(document.getElementById('input-revenus').value) || 0;
+    const charges = parseFloat(document.getElementById('input-charges').value) || 0;
+
+    // Mise à jour de l'affichage de l'apport
+    document.getElementById('val-apport').innerText = apport.toLocaleString();
+    document.getElementById('res-apport').innerText = apport.toLocaleString() + " €";
+
+    // Calculs simplifiés (simulation)
+    const montantEmprunt = prix - apport;
+    const resteAVivre = revenus - charges;
+    
+    // On estime une mensualité à 33% du revenu pour l'exemple
+    const mensualiteMax = Math.round(resteAVivre * 0.33);
+
+    // Mise à jour du résumé
+    document.getElementById('res-montant').innerText = (montantEmprunt > 0 ? montantEmprunt : 0).toLocaleString();
+    document.getElementById('res-mensualite').innerText = mensualiteMax.toLocaleString();
+}
+
+// Initialisation au chargement
+window.onload = calculer;

@@ -1,0 +1,69 @@
+Sub splitdata()
+
+    Dim wssource As Worksheet
+    Dim wstarget As Worksheet
+    Dim i As Long
+    Dim lastRow As Long
+    Dim monthyear As String
+    Dim dict As Object
+    Dim nom As String
+    
+    Set wssource = ThisWorkbook.Worksheets("OCAOCR")
+    Set dict = CreateObject("Scripting.Dictionary")
+    
+    ' 👉 On fige la dernière ligne dès le début
+    lastRow = wssource.Cells(wssource.Rows.Count, "B").End(xlUp).Row
+    
+    For i = 2 To lastRow
+        
+        ' 👉 Sécurité : ignorer les lignes vides après suppression
+        If IsEmpty(wssource.Cells(i, "B")) Then GoTo suite
+        
+        monthyear = Format(wssource.Cells(i, "B").Value, "mm/yyyy")
+        
+        If monthyear = "01/2026" Then
+            monthyear = "Janvier"
+        ElseIf monthyear = "02/2026" Then
+            monthyear = "Février"
+        ElseIf monthyear = "03/2026" Then
+            monthyear = "Mars"
+        ElseIf monthyear = "04/2026" Then
+            monthyear = "Avril"
+        ElseIf monthyear = "05/2026" Then
+            monthyear = "Mai"
+        ElseIf monthyear = "06/2026" Then
+            monthyear = "Juin"
+        ElseIf monthyear = "07/2026" Then
+            monthyear = "Juillet"
+        ElseIf monthyear = "08/2026" Then
+            monthyear = "Aout"
+        ElseIf monthyear = "09/2026" Then
+            monthyear = "Septembre"
+        ElseIf monthyear = "10/2026" Then
+            monthyear = "Octobre"
+        ElseIf monthyear = "11/2026" Then
+            monthyear = "Novembre"
+        ElseIf monthyear = "12/2026" Then
+            monthyear = "Décembre"
+        End If
+        
+        ' 👉 Sécurisation de la feuille (évite erreur 9 en fin de boucle)
+        On Error Resume Next
+        Set wstarget = ThisWorkbook.Worksheets(monthyear)
+        On Error GoTo 0
+        
+        If Not wstarget Is Nothing Then
+            wssource.Rows(i).Copy wstarget.Cells(wstarget.Rows.Count, "A").End(xlUp).Offset(1, 0)
+            wssource.Rows(i).Delete
+            i = i - 1
+            lastRow = lastRow - 1
+        End If
+        
+suite:
+        Set wstarget = Nothing
+        
+    Next i
+
+    Set dict = Nothing
+
+End Sub

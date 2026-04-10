@@ -1,0 +1,214 @@
+Sub SplitCSVByMonth_V2()
+
+    Dim sourceFolder As String
+    Dim destFolder As String
+    Dim fileName As String
+    Dim wbSource As Workbook
+    Dim wsSource As Worksheet
+    Dim wbNew As Workbook
+    Dim wsNew As Worksheet
+    Dim lastRow As Long
+    Dim dateCol As Long
+    Dim monthList As Object
+    Dim monthKey As Variant
+    Dim monthValue As String
+    Dim newFileName As String
+    Dim fso As Object
+    Dim i As Long
+    Dim dateValue As Variant
+    Dim destRow As Long
+    Dim lineCount As Long
+
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+
+    sourceFolder = "C:\Users\CHAACHYO\Desktop\Nouveau dossier (4)\Nouveau dossier\"
+    destFolder = "C:\Users\CHAACHYO\Desktop\Nouveau dossier (4)\2026\"
+
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    If Not fso.folderExists(destFolder) Then
+        fso.CreateFolder destFolder
+    End If
+
+    fileName = Dir(sourceFolder & "*.csv")
+    
+    Do While fileName <> ""
+        Debug.Print "=== Traitement de : " & fileName & " ==="
+        
+        ' Ouvrir en spécifiant le séparateur (point-virgule fréquent en français)
+        Workbooks.OpenText fileName:=sourceFolder & fileName, _
+                           Origin:=65001, _
+                           StartRow:=1, _
+                           DataType:=xlDelimited, _
+                           TextQualifier:=xlDoubleQuote, _
+                           ConsecutiveDelimiter:=False, _
+                           Semicolon:=True, _
+                           Comma:=False, _
+                           Tab:=False, _
+                           Local:=True
+        
+        Set wbSource = ActiveWorkbook
+        Set wsSource = wbSource.Sheets(1)
+
+        ' Trouver la colonne date
+        dateCol = FindDateColumnEnhanced(wsSource)
+        Debug.Print "  Colonne date trouvée : " & dateCol
+
+        If dateCol = 0 Then
+            MsgBox "Colonne date non trouvée dans : " & fileName
+            wbSource.Close False
+            fileName = Dir
+            GoTo NextFile
+        End If
+
+        lastRow = wsSource.Cells(wsSource.Rows.Count, dateCol).End(xlUp).Row
+        Debug.Print "  Nombre de lignes total : " & lastRow
+
+        If lastRow <= 1 Then
+            MsgBox "Fichier vide ou sans données : " & fileName
+            wbSource.Close False
+            fileName = Dir
+            GoTo NextFile
+        End If
+
+        ' Dictionnaire pour les mois
+        Set monthList = CreateObject("Scripting.Dictionary")
+        
+        ' Première passe : identifier tous les mois
+        For i = 2 To lastRow
+            dateValue = ParseFrenchDate(wsSource.Cells(i, dateCol).Value)
+            If IsDate(dateValue) Then
+                monthValue = Format(CDate(dateValue), "yyyy_mm")
+                If Not monthList.Exists(monthValue) Then
+                    monthList.Add monthValue, New Collection
+                End If
+            End If
+        Next i
+        
+        Debug.Print "  Mois uniques trouvés : " & monthList.Count
+        
+        If monthList.Count = 0 Then
+            MsgBox "Aucune date valide dans : " & fileName & vbCrLf & _
+                   "Première valeur de date : " & wsSource.Cells(2, dateCol).Value
+            wbSource.Close False
+            fileName = Dir
+            GoTo NextFile
+        End If
+
+        ' Pour chaque mois, créer un fichier
+        For Each monthKey In monthList.Keys
+            Set wbNew = Workbooks.Add
+            Set wsNew = wbNew.Sheets(1)
+            
+            ' Copier l'en-tête
+            wsSource.Rows(1).Copy Destination:=wsNew.Rows(1)
+            destRow = 2
+            lineCount = 0
+            
+            ' Copier les lignes correspondant au mois
+            For i = 2 To lastRow
+                dateValue = ParseFrenchDate(wsSource.Cells(i, dateCol).Value)
+                If IsDate(dateValue) Then
+                    If Format(CDate(dateValue), "yyyy_mm") = monthKey Then
+                        wsSource.Rows(i).Copy Destination:=wsNew.Rows(destRow)
+                        destRow = destRow + 1
+                        lineCount = lineCount + 1
+                    End If
+                End If
+            Next i
+            
+            If lineCount > 0 Then
+                wsNew.Columns.AutoFit
+                newFileName = Replace(fileName, ".csv", "") & "_" & monthKey & ".csv"
+                
+                ' Sauvegarder avec séparateur point-virgule (format FR)
+                wbNew.SaveAs fileName:=destFolder & newFileName, _
+                              FileFormat:=xlCSV, _
+                              Local:=True
+                
+                wbNew.Close False
+                Debug.Print "    " & newFileName & " : " & lineCount & " lignes"
+            Else
+                wbNew.Close False
+            End If
+        Next monthKey
+
+        wbSource.Close False
+        
+NextFile:
+        fileName = Dir
+    Loop
+
+    Application.ScreenUpdating = True
+    Application.DisplayAlerts = True
+    MsgBox "Traitement terminé !"
+End Sub
+
+Function FindDateColumnEnhanced(ws As Worksheet) As Long
+    Dim col As Long
+    Dim headerCell As Range
+    Dim headerValue As String
+    
+    For col = 1 To ws.UsedRange.Columns.Count
+        Set headerCell = ws.Cells(1, col)
+        If Not IsEmpty(headerCell.Value) Then
+            headerValue = LCase(CStr(headerCell.Value))
+            If InStr(headerValue, "date") > 0 Or _
+               InStr(headerValue, "jour") > 0 Or _
+               InStr(headerValue, "time") > 0 Then
+                FindDateColumnEnhanced = col
+                Exit Function
+            End If
+        End If
+    Next col
+    
+    ' Si non trouvé, demande manuelle
+    On Error Resume Next
+    FindDateColumnEnhanced = Application.InputBox( _
+        "Sélectionnez la colonne contenant les dates", Type:=8).Column
+    On Error GoTo 0
+End Function
+
+Function ParseFrenchDate(val As Variant) As Variant
+    ' Convertit une date au format FR en valeur Date VBA
+    Dim temp As String
+    Dim parts() As String
+    
+    If IsEmpty(val) Then
+        ParseFrenchDate = Empty
+        Exit Function
+    End If
+    
+    If IsDate(val) Then
+        ParseFrenchDate = CDate(val)
+        Exit Function
+    End If
+    
+    ' Tenter de parser jj/mm/aaaa ou jj/mm/aa
+    temp = Trim(CStr(val))
+    If temp Like "##/##/####" Or temp Like "##/##/##" Then
+        parts = Split(temp, "/")
+        If UBound(parts) = 2 Then
+            On Error Resume Next
+            ParseFrenchDate = DateSerial(CLng(parts(2)), CLng(parts(1)), CLng(parts(0)))
+            On Error GoTo 0
+            If IsDate(ParseFrenchDate) Then Exit Function
+        End If
+    End If
+    
+    ' Tenter jj-mm-aaaa
+   If temp Like "##-##-####" Then
+        parts = Split(temp, "-")
+        If UBound(parts) = 2 Then
+            On Error Resume Next
+            ParseFrenchDate = DateSerial(CLng(parts(2)), CLng(parts(1)), CLng(parts(0)))
+            On Error GoTo 0
+            If IsDate(ParseFrenchDate) Then Exit Function
+        End If
+    End If
+    
+    ' Par défaut
+    ParseFrenchDate = Empty
+End Function
+
+

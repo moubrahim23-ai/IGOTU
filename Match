@@ -1,69 +1,307 @@
-Sub splitdata()
+Option Explicit
 
-    Dim wssource As Worksheet
-    Dim wstarget As Worksheet
-    Dim i As Long
-    Dim lastRow As Long
-    Dim monthyear As String
-    Dim dict As Object
-    Dim nom As String
-    
-    Set wssource = ThisWorkbook.Worksheets("OCAOCR")
-    Set dict = CreateObject("Scripting.Dictionary")
-    
-    ' 👉 On fige la dernière ligne dès le début
-    lastRow = wssource.Cells(wssource.Rows.Count, "B").End(xlUp).Row
-    
+'=============================
+' INITIALISATION FORMULAIRE
+'=============================
+Private Sub UserForm_Initialize()
+
+    Me.StartUpPosition = 0
+    Me.Left = Application.Left + (Application.Width - Me.Width) / 2
+    Me.Top = Application.Top + (Application.Height - Me.Height) / 2
+
+    txt_DATE.Value = Format(Date, "dd/mm/yyyy")
+    agent.Value = Environ("USERNAME")
+
+    ' Activité
+    cmbActivite.List = Array("Octroi Classique", "Live Console")
+
+    ' Produit
+    cmbProduit.List = Array("CLA", "CSA CDISCOUNT", "PPR", "AVENANT", _
+                           "Cartes Directes", "CCL CDISCOUNT", "Lydia/BANKIN", _
+                           "MC DC CASINO", "PPC", "CCL SFR", _
+                           "CCL/12/24/36", "Live Carte", "Live CCL", _
+                           "Live CDP", "TRADE In")
+
+    ' Décision
+    cmbDecision.List = Array("ACC VALIDE", "Incomplet", "REFUSE", "SUSPENDU")
+
+    ' Document
+    cmbDocument.List = Array("Avis d'imposition", "Bulletin de Salaire")
+
+End Sub
+
+'=============================
+' AJOUT DONNEE
+'=============================
+Private Sub cmb_Ajouter_Click()
+
+    On Error GoTo ErrHandler
+
+    Dim ws As Worksheet
+    Dim lastRow As Long, i As Long, ligne As Long
+
+    Set ws = ThisWorkbook.Worksheets("temp")
+
+    ' 🔴 CONTROLES
+    If cmbActivite.Value = "" Then MsgBox "Sélectionnez une activité.", vbExclamation: Exit Sub
+    If cmbProduit.Value = "" Then MsgBox "Sélectionnez un produit.", vbExclamation: Exit Sub
+    If cmbDecision.Value = "" Then MsgBox "Sélectionnez une décision.", vbExclamation: Exit Sub
+    If txtDossier.Value = "" Then MsgBox "Saisissez un dossier.", vbExclamation: Exit Sub
+
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+
+    ' 🔴 DOUBLON
     For i = 2 To lastRow
-        
-        ' 👉 Sécurité : ignorer les lignes vides après suppression
-        If IsEmpty(wssource.Cells(i, "B")) Then GoTo suite
-        
-        monthyear = Format(wssource.Cells(i, "B").Value, "mm/yyyy")
-        
-        If monthyear = "01/2026" Then
-            monthyear = "Janvier"
-        ElseIf monthyear = "02/2026" Then
-            monthyear = "Février"
-        ElseIf monthyear = "03/2026" Then
-            monthyear = "Mars"
-        ElseIf monthyear = "04/2026" Then
-            monthyear = "Avril"
-        ElseIf monthyear = "05/2026" Then
-            monthyear = "Mai"
-        ElseIf monthyear = "06/2026" Then
-            monthyear = "Juin"
-        ElseIf monthyear = "07/2026" Then
-            monthyear = "Juillet"
-        ElseIf monthyear = "08/2026" Then
-            monthyear = "Aout"
-        ElseIf monthyear = "09/2026" Then
-            monthyear = "Septembre"
-        ElseIf monthyear = "10/2026" Then
-            monthyear = "Octobre"
-        ElseIf monthyear = "11/2026" Then
-            monthyear = "Novembre"
-        ElseIf monthyear = "12/2026" Then
-            monthyear = "Décembre"
+        If ws.Cells(i, 5).Value = txtDossier.Value Then
+            MsgBox "Dossier déjà existant !", vbCritical
+            Exit Sub
         End If
-        
-        ' 👉 Sécurisation de la feuille (évite erreur 9 en fin de boucle)
-        On Error Resume Next
-        Set wstarget = ThisWorkbook.Worksheets(monthyear)
-        On Error GoTo 0
-        
-        If Not wstarget Is Nothing Then
-            wssource.Rows(i).Copy wstarget.Cells(wstarget.Rows.Count, "A").End(xlUp).Offset(1, 0)
-            wssource.Rows(i).Delete
-            i = i - 1
-            lastRow = lastRow - 1
-        End If
-        
-suite:
-        Set wstarget = Nothing
-        
     Next i
 
-    Set dict = Nothing
+    ligne = lastRow + 1
+
+    With ws
+        .Cells(ligne, 1).Value = agent.Value
+        .Cells(ligne, 2).Value = Date
+        .Cells(ligne, 3).Value = cmbActivite.Value
+        .Cells(ligne, 4).Value = cmbProduit.Value
+        .Cells(ligne, 5).Value = txtDossier.Value
+        .Cells(ligne, 6).Value = cmbDecision.Value
+        .Cells(ligne, 7).Value = cmbDocument.Value
+        .Cells(ligne, 8).Value = comment.Value
+        .Cells(ligne, 9).Value = Now
+    End With
+
+    Call log2
+
+    MsgBox "Ajout réussi ✅", vbInformation
+
+    ' Reset
+    cmbActivite = ""
+    cmbProduit = ""
+    txtDossier = ""
+    cmbDecision = ""
+    cmbDocument = ""
+    comment = ""
+
+    Call RefreshList
+
+    Exit Sub
+
+ErrHandler:
+    MsgBox "Erreur : " & Err.Description, vbCritical
+
+End Sub
+
+'=============================
+' SUPPRESSION
+'=============================
+Private Sub cmb_Supprimmer_Click()
+
+    On Error GoTo ErrHandler
+
+    If vue.ListIndex < 0 Then
+        MsgBox "Sélectionnez une ligne.", vbExclamation
+        Exit Sub
+    End If
+
+    Dim ws As Worksheet
+    Dim i As Long, lastRow As Long
+    Dim valDossier As String
+
+    Set ws = ThisWorkbook.Worksheets("temp")
+
+    valDossier = vue.List(vue.ListIndex, 4)
+
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+
+    For i = 2 To lastRow
+        If ws.Cells(i, 5).Value = valDossier Then
+            ws.Rows(i).Delete
+            Exit For
+        End If
+    Next i
+
+    MsgBox "Suppression OK ✅", vbInformation
+
+    Call log
+    Call RefreshList
+
+    Exit Sub
+
+ErrHandler:
+    MsgBox "Erreur suppression : " & Err.Description, vbCritical
+
+End Sub
+
+'=============================
+' SAUVEGARDE CSV PAR MOIS
+'=============================
+Private Sub cmb_Sauvegarder_Click()
+
+    On Error GoTo ErrHandler
+
+    Dim ws As Worksheet
+    Dim lastRow As Long, i As Long
+    Dim d As Date, mois As String, annee As String
+    Dim filePath As String
+    Dim dict As Object
+    Dim fileNum As Integer
+    Dim nb As Long, key
+
+    Set ws = ThisWorkbook.Worksheets("extraction")
+    Set dict = CreateObject("Scripting.Dictionary")
+
+    If Dir("\\uf11pu01\ACCESSIBILITÉ_CONSEILLERS\", vbDirectory) = "" Then
+        MsgBox "Dossier réseau inaccessible.", vbCritical
+        Exit Sub
+    End If
+
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+
+    If lastRow < 2 Then
+        MsgBox "Aucune donnée.", vbExclamation
+        Exit Sub
+    End If
+
+    For i = 2 To lastRow
+
+        If IsDate(ws.Cells(i, 2).Value) Then
+
+            d = ws.Cells(i, 2).Value
+            mois = Format(d, "mm")
+            annee = Format(d, "yyyy")
+
+            filePath = "\\uf11pu01\ACCESSIBILITÉ_CONSEILLERS\" & _
+                       Environ("USERNAME") & "_" & mois & "_" & annee & ".csv"
+
+            If Not dict.exists(filePath) Then
+                fileNum = FreeFile
+                Open filePath For Append As #fileNum
+                Print #fileNum, "Agent;Date;Activite;Produit;Dossier;Decision;Document;Commentaire;Horodatage"
+                dict.Add filePath, fileNum
+            End If
+
+            fileNum = dict(filePath)
+
+            Print #fileNum, Join(Array( _
+                ws.Cells(i, 1), _
+                Format(ws.Cells(i, 2), "dd/mm/yyyy"), _
+                ws.Cells(i, 3), _
+                ws.Cells(i, 4), _
+                ws.Cells(i, 5), _
+                ws.Cells(i, 6), _
+                ws.Cells(i, 7), _
+                ws.Cells(i, 8), _
+                ws.Cells(i, 9)), ";")
+
+            nb = nb + 1
+
+        End If
+
+    Next i
+
+    For Each key In dict.Keys
+        Close #dict(key)
+    Next key
+
+    ws.Rows("2:" & ws.Rows.Count).ClearContents
+
+    MsgBox nb & " lignes sauvegardées ✅", vbInformation
+
+    Exit Sub
+
+ErrHandler:
+    MsgBox "Erreur sauvegarde : " & Err.Description, vbCritical
+
+End Sub
+
+'=============================
+' CLICK LISTBOX
+'=============================
+Private Sub vue_Click()
+    If vue.ListIndex >= 0 Then LoadSelectedData
+End Sub
+
+'=============================
+' CHARGER LIGNE
+'=============================
+Private Sub LoadSelectedData()
+
+    Dim ws As Worksheet
+    Dim i As Long, lastRow As Long
+    Dim valDossier As String
+
+    Set ws = ThisWorkbook.Worksheets("temp")
+
+    valDossier = vue.List(vue.ListIndex, 4)
+
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+
+    For i = 2 To lastRow
+        If ws.Cells(i, 5).Value = valDossier Then Exit For
+    Next i
+
+    With ws
+        agent = .Cells(i, 1)
+        cmbActivite = .Cells(i, 3)
+        cmbProduit = .Cells(i, 4)
+        txtDossier = .Cells(i, 5)
+        cmbDecision = .Cells(i, 6)
+        cmbDocument = .Cells(i, 7)
+        comment = .Cells(i, 8)
+    End With
+
+End Sub
+
+'=============================
+' REFRESH LISTBOX
+'=============================
+Private Sub RefreshList()
+
+    Dim ws As Worksheet
+    Dim lastRow As Long
+
+    Set ws = ThisWorkbook.Worksheets("temp")
+
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+
+    If lastRow >= 2 Then
+        vue.List = ws.Range("A2:I" & lastRow).Value
+    Else
+        vue.Clear
+    End If
+
+End Sub
+
+'=============================
+' LOG SUPPRESSION
+'=============================
+Private Sub log()
+
+    Dim ws As Worksheet, l As Long
+
+    Set ws = ThisWorkbook.Worksheets("extraction")
+
+    l = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row + 1
+
+    ws.Cells(l, 1).Resize(1, 9).Value = Array(agent, Date, cmbActivite, cmbProduit, txtDossier, cmbDecision, cmbDocument, comment, Now)
+    ws.Cells(l, 10).Value = "Supprimé"
+
+End Sub
+
+'=============================
+' LOG AJOUT
+'=============================
+Private Sub log2()
+
+    Dim ws As Worksheet, l As Long
+
+    Set ws = ThisWorkbook.Worksheets("extraction")
+
+    l = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row + 1
+
+    ws.Cells(l, 1).Resize(1, 9).Value = Array(agent, Date, cmbActivite, cmbProduit, txtDossier, cmbDecision, cmbDocument, comment, Now)
+    ws.Cells(l, 10).Value = "Validé"
 
 End Sub

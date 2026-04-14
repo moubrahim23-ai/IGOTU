@@ -1,307 +1,143 @@
-Option Explicit
+Sub MergeAllSheetsFromFiles_Optimized()
 
-'=============================
-' INITIALISATION FORMULAIRE
-'=============================
-Private Sub UserForm_Initialize()
+    Dim wsDestOCAOCR As Worksheet, wsDestSOLVA As Worksheet, wsDestETUDEINC As Worksheet
+    Dim wbSource As Workbook, wsSource As Worksheet
+    Dim lastRow As Long, lastCol As Long, formatCol As Long
+    Dim destRowOCAOCR As Long, destRowSOLVA As Long, destRowETUDEINC As Long
+    Dim i As Long
+    Dim fso As Object, folder As Object, subfolder As Object, fichier As Object
+    Dim basePath As String
+    Dim dataArr As Variant, resultArr() As Variant
+    Dim r As Long, c As Long, count As Long
 
-    Me.StartUpPosition = 0
-    Me.Left = Application.Left + (Application.Width - Me.Width) / 2
-    Me.Top = Application.Top + (Application.Height - Me.Height) / 2
+    ' 🔥 Optimisation Excel
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
 
-    txt_DATE.Value = Format(Date, "dd/mm/yyyy")
-    agent.Value = Environ("USERNAME")
+    basePath = "\\uf11pu01\COFIDIS_TC\A-PRODUCTION\1-PRODUCTION\CC DFRA\2-Nouveau répertoire"
 
-    ' Activité
-    cmbActivite.List = Array("Octroi Classique", "Live Console")
+    Set wsDestOCAOCR = ThisWorkbook.Worksheets("OCAOCR")
+    Set wsDestSOLVA = ThisWorkbook.Worksheets("SOLVA")
+    Set wsDestETUDEINC = ThisWorkbook.Worksheets("ETUDEINC")
 
-    ' Produit
-    cmbProduit.List = Array("CLA", "CSA CDISCOUNT", "PPR", "AVENANT", _
-                           "Cartes Directes", "CCL CDISCOUNT", "Lydia/BANKIN", _
-                           "MC DC CASINO", "PPC", "CCL SFR", _
-                           "CCL/12/24/36", "Live Carte", "Live CCL", _
-                           "Live CDP", "TRADE In")
+    wsDestOCAOCR.Cells.Clear
+    wsDestSOLVA.Cells.Clear
+    wsDestETUDEINC.Cells.Clear
 
-    ' Décision
-    cmbDecision.List = Array("ACC VALIDE", "Incomplet", "REFUSE", "SUSPENDU")
+    destRowOCAOCR = 2
+    destRowSOLVA = 2
+    destRowETUDEINC = 2
 
-    ' Document
-    cmbDocument.List = Array("Avis d'imposition", "Bulletin de Salaire")
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Set folder = fso.GetFolder(basePath)
 
-End Sub
+    For Each subfolder In folder.SubFolders
 
-'=============================
-' AJOUT DONNEE
-'=============================
-Private Sub cmb_Ajouter_Click()
+        ' 👉 Ouvre UNE SEULE FOIS par dossier
+        On Error Resume Next
+        Set wbSource = Workbooks.Open(subfolder.Path & "\Cofidis.xlsm")
+        On Error GoTo 0
 
-    On Error GoTo ErrHandler
+        If wbSource Is Nothing Then GoTo NEXTFOLDER
 
-    Dim ws As Worksheet
-    Dim lastRow As Long, i As Long, ligne As Long
+        ' =========================
+        ' 🔹 TRAITEMENT DES 3 FEUILLES
+        ' =========================
+        Dim arrSheets As Variant
+        arrSheets = Array("OCAOCR", "SOLVA", "ETUDEINC")
 
-    Set ws = ThisWorkbook.Worksheets("temp")
+        For i = LBound(arrSheets) To UBound(arrSheets)
 
-    ' 🔴 CONTROLES
-    If cmbActivite.Value = "" Then MsgBox "Sélectionnez une activité.", vbExclamation: Exit Sub
-    If cmbProduit.Value = "" Then MsgBox "Sélectionnez un produit.", vbExclamation: Exit Sub
-    If cmbDecision.Value = "" Then MsgBox "Sélectionnez une décision.", vbExclamation: Exit Sub
-    If txtDossier.Value = "" Then MsgBox "Saisissez un dossier.", vbExclamation: Exit Sub
+            Set wsSource = Nothing
+            On Error Resume Next
+            Set wsSource = wbSource.Worksheets(arrSheets(i))
+            On Error GoTo 0
 
-    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+            If wsSource Is Nothing Then GoTo NextSheet
 
-    ' 🔴 DOUBLON
-    For i = 2 To lastRow
-        If ws.Cells(i, 5).Value = txtDossier.Value Then
-            MsgBox "Dossier déjà existant !", vbCritical
-            Exit Sub
-        End If
-    Next i
+            lastRow = wsSource.Cells(wsSource.Rows.Count, 1).End(xlUp).Row
+            lastCol = wsSource.Cells(1, wsSource.Columns.Count).End(xlToLeft).Column
 
-    ligne = lastRow + 1
+            If lastRow < 2 Then GoTo NextSheet
 
-    With ws
-        .Cells(ligne, 1).Value = agent.Value
-        .Cells(ligne, 2).Value = Date
-        .Cells(ligne, 3).Value = cmbActivite.Value
-        .Cells(ligne, 4).Value = cmbProduit.Value
-        .Cells(ligne, 5).Value = txtDossier.Value
-        .Cells(ligne, 6).Value = cmbDecision.Value
-        .Cells(ligne, 7).Value = cmbDocument.Value
-        .Cells(ligne, 8).Value = comment.Value
-        .Cells(ligne, 9).Value = Now
-    End With
+            ' 🔥 Charger en mémoire
+            dataArr = wsSource.Range(wsSource.Cells(1, 1), wsSource.Cells(lastRow, lastCol)).Value
 
-    Call log2
+            ' Trouver colonne "i"
+            formatCol = 0
+            For c = 1 To lastCol
+                If LCase(dataArr(1, c)) = "i" Then
+                    formatCol = c
+                    Exit For
+                End If
+            Next c
 
-    MsgBox "Ajout réussi ✅", vbInformation
+            If formatCol = 0 Then GoTo NextSheet
 
-    ' Reset
-    cmbActivite = ""
-    cmbProduit = ""
-    txtDossier = ""
-    cmbDecision = ""
-    cmbDocument = ""
-    comment = ""
+            ' 🔥 Préparer tableau résultat
+            ReDim resultArr(1 To lastRow, 1 To lastCol)
+            count = 0
 
-    Call RefreshList
+            ' Copier header
+            For c = 1 To lastCol
+                resultArr(1, c) = dataArr(1, c)
+            Next c
 
-    Exit Sub
+            ' Filtrer en mémoire
+            For r = 2 To lastRow
+                If InStr(1, LCase(dataArr(r, formatCol))) > 0 Then
+                    count = count + 1
+                    For c = 1 To lastCol
+                        resultArr(count + 1, c) = dataArr(r, c)
+                    Next c
+                End If
+            Next r
 
-ErrHandler:
-    MsgBox "Erreur : " & Err.Description, vbCritical
+            If count > 0 Then
 
-End Sub
+                Select Case arrSheets(i)
 
-'=============================
-' SUPPRESSION
-'=============================
-Private Sub cmb_Supprimmer_Click()
+                    Case "OCAOCR"
+                        If wsDestOCAOCR.Cells(1, 1).Value = "" Then
+                            wsDestOCAOCR.Rows(1).Resize(1, lastCol).Value = Application.Index(resultArr, 1, 0)
+                        End If
+                        wsDestOCAOCR.Cells(destRowOCAOCR, 1).Resize(count, lastCol).Value = _
+                            Application.Index(resultArr, Evaluate("ROW(2:" & count + 1 & ")"), 0)
+                        destRowOCAOCR = destRowOCAOCR + count
 
-    On Error GoTo ErrHandler
+                    Case "SOLVA"
+                        If wsDestSOLVA.Cells(1, 1).Value = "" Then
+                            wsDestSOLVA.Rows(1).Resize(1, lastCol).Value = Application.Index(resultArr, 1, 0)
+                        End If
+                        wsDestSOLVA.Cells(destRowSOLVA, 1).Resize(count, lastCol).Value = _
+                            Application.Index(resultArr, Evaluate("ROW(2:" & count + 1 & ")"), 0)
+                        destRowSOLVA = destRowSOLVA + count
 
-    If vue.ListIndex < 0 Then
-        MsgBox "Sélectionnez une ligne.", vbExclamation
-        Exit Sub
-    End If
+                    Case "ETUDEINC"
+                        If wsDestETUDEINC.Cells(1, 1).Value = "" Then
+                            wsDestETUDEINC.Rows(1).Resize(1, lastCol).Value = Application.Index(resultArr, 1, 0)
+                        End If
+                        wsDestETUDEINC.Cells(destRowETUDEINC, 1).Resize(count, lastCol).Value = _
+                            Application.Index(resultArr, Evaluate("ROW(2:" & count + 1 & ")"), 0)
+                        destRowETUDEINC = destRowETUDEINC + count
 
-    Dim ws As Worksheet
-    Dim i As Long, lastRow As Long
-    Dim valDossier As String
-
-    Set ws = ThisWorkbook.Worksheets("temp")
-
-    valDossier = vue.List(vue.ListIndex, 4)
-
-    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
-
-    For i = 2 To lastRow
-        If ws.Cells(i, 5).Value = valDossier Then
-            ws.Rows(i).Delete
-            Exit For
-        End If
-    Next i
-
-    MsgBox "Suppression OK ✅", vbInformation
-
-    Call log
-    Call RefreshList
-
-    Exit Sub
-
-ErrHandler:
-    MsgBox "Erreur suppression : " & Err.Description, vbCritical
-
-End Sub
-
-'=============================
-' SAUVEGARDE CSV PAR MOIS
-'=============================
-Private Sub cmb_Sauvegarder_Click()
-
-    On Error GoTo ErrHandler
-
-    Dim ws As Worksheet
-    Dim lastRow As Long, i As Long
-    Dim d As Date, mois As String, annee As String
-    Dim filePath As String
-    Dim dict As Object
-    Dim fileNum As Integer
-    Dim nb As Long, key
-
-    Set ws = ThisWorkbook.Worksheets("extraction")
-    Set dict = CreateObject("Scripting.Dictionary")
-
-    If Dir("\\uf11pu01\ACCESSIBILITÉ_CONSEILLERS\", vbDirectory) = "" Then
-        MsgBox "Dossier réseau inaccessible.", vbCritical
-        Exit Sub
-    End If
-
-    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
-
-    If lastRow < 2 Then
-        MsgBox "Aucune donnée.", vbExclamation
-        Exit Sub
-    End If
-
-    For i = 2 To lastRow
-
-        If IsDate(ws.Cells(i, 2).Value) Then
-
-            d = ws.Cells(i, 2).Value
-            mois = Format(d, "mm")
-            annee = Format(d, "yyyy")
-
-            filePath = "\\uf11pu01\ACCESSIBILITÉ_CONSEILLERS\" & _
-                       Environ("USERNAME") & "_" & mois & "_" & annee & ".csv"
-
-            If Not dict.exists(filePath) Then
-                fileNum = FreeFile
-                Open filePath For Append As #fileNum
-                Print #fileNum, "Agent;Date;Activite;Produit;Dossier;Decision;Document;Commentaire;Horodatage"
-                dict.Add filePath, fileNum
+                End Select
             End If
 
-            fileNum = dict(filePath)
+NextSheet:
+        Next i
 
-            Print #fileNum, Join(Array( _
-                ws.Cells(i, 1), _
-                Format(ws.Cells(i, 2), "dd/mm/yyyy"), _
-                ws.Cells(i, 3), _
-                ws.Cells(i, 4), _
-                ws.Cells(i, 5), _
-                ws.Cells(i, 6), _
-                ws.Cells(i, 7), _
-                ws.Cells(i, 8), _
-                ws.Cells(i, 9)), ";")
+        wbSource.Close False
 
-            nb = nb + 1
+NEXTFOLDER:
+    Next subfolder
 
-        End If
+    ' 🔥 Restauration Excel
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
 
-    Next i
-
-    For Each key In dict.Keys
-        Close #dict(key)
-    Next key
-
-    ws.Rows("2:" & ws.Rows.Count).ClearContents
-
-    MsgBox nb & " lignes sauvegardées ✅", vbInformation
-
-    Exit Sub
-
-ErrHandler:
-    MsgBox "Erreur sauvegarde : " & Err.Description, vbCritical
-
-End Sub
-
-'=============================
-' CLICK LISTBOX
-'=============================
-Private Sub vue_Click()
-    If vue.ListIndex >= 0 Then LoadSelectedData
-End Sub
-
-'=============================
-' CHARGER LIGNE
-'=============================
-Private Sub LoadSelectedData()
-
-    Dim ws As Worksheet
-    Dim i As Long, lastRow As Long
-    Dim valDossier As String
-
-    Set ws = ThisWorkbook.Worksheets("temp")
-
-    valDossier = vue.List(vue.ListIndex, 4)
-
-    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
-
-    For i = 2 To lastRow
-        If ws.Cells(i, 5).Value = valDossier Then Exit For
-    Next i
-
-    With ws
-        agent = .Cells(i, 1)
-        cmbActivite = .Cells(i, 3)
-        cmbProduit = .Cells(i, 4)
-        txtDossier = .Cells(i, 5)
-        cmbDecision = .Cells(i, 6)
-        cmbDocument = .Cells(i, 7)
-        comment = .Cells(i, 8)
-    End With
-
-End Sub
-
-'=============================
-' REFRESH LISTBOX
-'=============================
-Private Sub RefreshList()
-
-    Dim ws As Worksheet
-    Dim lastRow As Long
-
-    Set ws = ThisWorkbook.Worksheets("temp")
-
-    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
-
-    If lastRow >= 2 Then
-        vue.List = ws.Range("A2:I" & lastRow).Value
-    Else
-        vue.Clear
-    End If
-
-End Sub
-
-'=============================
-' LOG SUPPRESSION
-'=============================
-Private Sub log()
-
-    Dim ws As Worksheet, l As Long
-
-    Set ws = ThisWorkbook.Worksheets("extraction")
-
-    l = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row + 1
-
-    ws.Cells(l, 1).Resize(1, 9).Value = Array(agent, Date, cmbActivite, cmbProduit, txtDossier, cmbDecision, cmbDocument, comment, Now)
-    ws.Cells(l, 10).Value = "Supprimé"
-
-End Sub
-
-'=============================
-' LOG AJOUT
-'=============================
-Private Sub log2()
-
-    Dim ws As Worksheet, l As Long
-
-    Set ws = ThisWorkbook.Worksheets("extraction")
-
-    l = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row + 1
-
-    ws.Cells(l, 1).Resize(1, 9).Value = Array(agent, Date, cmbActivite, cmbProduit, txtDossier, cmbDecision, cmbDocument, comment, Now)
-    ws.Cells(l, 10).Value = "Validé"
+    MsgBox "Fusion rapide terminée 🚀", vbInformation
 
 End Sub

@@ -1,143 +1,41 @@
-Sub MergeAllSheetsFromFiles_Optimized()
+Sub ComparerEtCopierDate()
 
-    Dim wsDestOCAOCR As Worksheet, wsDestSOLVA As Worksheet, wsDestETUDEINC As Worksheet
-    Dim wbSource As Workbook, wsSource As Worksheet
-    Dim lastRow As Long, lastCol As Long, formatCol As Long
-    Dim destRowOCAOCR As Long, destRowSOLVA As Long, destRowETUDEINC As Long
+    Dim ws1 As Worksheet, ws2 As Worksheet
+    Dim lastRow1 As Long, lastRow2 As Long
+    Dim dict As Object
     Dim i As Long
-    Dim fso As Object, folder As Object, subfolder As Object, fichier As Object
-    Dim basePath As String
-    Dim dataArr As Variant, resultArr() As Variant
-    Dim r As Long, c As Long, count As Long
+    Dim key As String
 
-    ' 🔥 Optimisation Excel
-    Application.ScreenUpdating = False
-    Application.Calculation = xlCalculationManual
-    Application.EnableEvents = False
+    ' Définir les feuilles
+    Set ws1 = ThisWorkbook.Sheets("Sheet1")
+    Set ws2 = ThisWorkbook.Sheets("Sheet2")
 
-    basePath = "\\uf11pu01\COFIDIS_TC\A-PRODUCTION\1-PRODUCTION\CC DFRA\2-Nouveau répertoire"
+    ' Dernières lignes
+    lastRow1 = ws1.Cells(ws1.Rows.Count, "A").End(xlUp).Row
+    lastRow2 = ws2.Cells(ws2.Rows.Count, "C").End(xlUp).Row
 
-    Set wsDestOCAOCR = ThisWorkbook.Worksheets("OCAOCR")
-    Set wsDestSOLVA = ThisWorkbook.Worksheets("SOLVA")
-    Set wsDestETUDEINC = ThisWorkbook.Worksheets("ETUDEINC")
+    ' Dictionnaire pour accélérer la recherche
+    Set dict = CreateObject("Scripting.Dictionary")
 
-    wsDestOCAOCR.Cells.Clear
-    wsDestSOLVA.Cells.Clear
-    wsDestETUDEINC.Cells.Clear
+    ' Charger les données de Sheet2 (clé = nom, valeur = date)
+    For i = 2 To lastRow2 ' (suppose ligne 1 = en-têtes)
+        key = Trim(ws2.Cells(i, "C").Value)
+        
+        If key <> "" Then
+            dict(key) = ws2.Cells(i, "A").Value
+        End If
+    Next i
 
-    destRowOCAOCR = 2
-    destRowSOLVA = 2
-    destRowETUDEINC = 2
+    ' Parcourir Sheet1 et comparer
+    For i = 2 To lastRow1
+        key = Trim(ws1.Cells(i, "A").Value)
+        
+        If dict.exists(key) Then
+            ' Coller la date en colonne B de Sheet1
+            ws1.Cells(i, "B").Value = dict(key)
+        End If
+    Next i
 
-    Set fso = CreateObject("Scripting.FileSystemObject")
-    Set folder = fso.GetFolder(basePath)
-
-    For Each subfolder In folder.SubFolders
-
-        ' 👉 Ouvre UNE SEULE FOIS par dossier
-        On Error Resume Next
-        Set wbSource = Workbooks.Open(subfolder.Path & "\Cofidis.xlsm")
-        On Error GoTo 0
-
-        If wbSource Is Nothing Then GoTo NEXTFOLDER
-
-        ' =========================
-        ' 🔹 TRAITEMENT DES 3 FEUILLES
-        ' =========================
-        Dim arrSheets As Variant
-        arrSheets = Array("OCAOCR", "SOLVA", "ETUDEINC")
-
-        For i = LBound(arrSheets) To UBound(arrSheets)
-
-            Set wsSource = Nothing
-            On Error Resume Next
-            Set wsSource = wbSource.Worksheets(arrSheets(i))
-            On Error GoTo 0
-
-            If wsSource Is Nothing Then GoTo NextSheet
-
-            lastRow = wsSource.Cells(wsSource.Rows.Count, 1).End(xlUp).Row
-            lastCol = wsSource.Cells(1, wsSource.Columns.Count).End(xlToLeft).Column
-
-            If lastRow < 2 Then GoTo NextSheet
-
-            ' 🔥 Charger en mémoire
-            dataArr = wsSource.Range(wsSource.Cells(1, 1), wsSource.Cells(lastRow, lastCol)).Value
-
-            ' Trouver colonne "i"
-            formatCol = 0
-            For c = 1 To lastCol
-                If LCase(dataArr(1, c)) = "i" Then
-                    formatCol = c
-                    Exit For
-                End If
-            Next c
-
-            If formatCol = 0 Then GoTo NextSheet
-
-            ' 🔥 Préparer tableau résultat
-            ReDim resultArr(1 To lastRow, 1 To lastCol)
-            count = 0
-
-            ' Copier header
-            For c = 1 To lastCol
-                resultArr(1, c) = dataArr(1, c)
-            Next c
-
-            ' Filtrer en mémoire
-            For r = 2 To lastRow
-                If InStr(1, LCase(dataArr(r, formatCol))) > 0 Then
-                    count = count + 1
-                    For c = 1 To lastCol
-                        resultArr(count + 1, c) = dataArr(r, c)
-                    Next c
-                End If
-            Next r
-
-            If count > 0 Then
-
-                Select Case arrSheets(i)
-
-                    Case "OCAOCR"
-                        If wsDestOCAOCR.Cells(1, 1).Value = "" Then
-                            wsDestOCAOCR.Rows(1).Resize(1, lastCol).Value = Application.Index(resultArr, 1, 0)
-                        End If
-                        wsDestOCAOCR.Cells(destRowOCAOCR, 1).Resize(count, lastCol).Value = _
-                            Application.Index(resultArr, Evaluate("ROW(2:" & count + 1 & ")"), 0)
-                        destRowOCAOCR = destRowOCAOCR + count
-
-                    Case "SOLVA"
-                        If wsDestSOLVA.Cells(1, 1).Value = "" Then
-                            wsDestSOLVA.Rows(1).Resize(1, lastCol).Value = Application.Index(resultArr, 1, 0)
-                        End If
-                        wsDestSOLVA.Cells(destRowSOLVA, 1).Resize(count, lastCol).Value = _
-                            Application.Index(resultArr, Evaluate("ROW(2:" & count + 1 & ")"), 0)
-                        destRowSOLVA = destRowSOLVA + count
-
-                    Case "ETUDEINC"
-                        If wsDestETUDEINC.Cells(1, 1).Value = "" Then
-                            wsDestETUDEINC.Rows(1).Resize(1, lastCol).Value = Application.Index(resultArr, 1, 0)
-                        End If
-                        wsDestETUDEINC.Cells(destRowETUDEINC, 1).Resize(count, lastCol).Value = _
-                            Application.Index(resultArr, Evaluate("ROW(2:" & count + 1 & ")"), 0)
-                        destRowETUDEINC = destRowETUDEINC + count
-
-                End Select
-            End If
-
-NextSheet:
-        Next i
-
-        wbSource.Close False
-
-NEXTFOLDER:
-    Next subfolder
-
-    ' 🔥 Restauration Excel
-    Application.ScreenUpdating = True
-    Application.Calculation = xlCalculationAutomatic
-    Application.EnableEvents = True
-
-    MsgBox "Fusion rapide terminée 🚀", vbInformation
+    MsgBox "Traitement terminé !", vbInformation
 
 End Sub

@@ -1,1 +1,89 @@
-Capture d’écran d’un document présentant deux interfaces mobiles d’envoi d’argent. À gauche, un écran de saisie manuelle d’un numéro de téléphone avec un bouton « Valider ». À droite, un écran de confirmation d’envoi avec un message personnalisé et un bouton « Valider l’envoi ». Des annotations expliquent les étapes (saisie du numéro et ajout d’un message).
+Sub ConsoliderCofidis()
+    Dim fso As Object, DossierRacine As Object, SousDossier As Object
+    Dim CheminRacine As String, CheminFichier As String
+    Dim WbSource As Workbook, WbDest As Workbook
+    Dim WsSolva As Worksheet, WsOcacor As Worksheet, WsEtudeinc As Worksheet
+    Dim DerniereLigne As Long, LigneDest As Long
+    
+    CheminRacine = "C:\desk\cofidis" ' Adapte si ton chemin est différent
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Set WbDest = ThisWorkbook
+    
+    If Not fso.FolderExists(CheminRacine) Then
+        MsgBox "Dossier introuvable : " & CheminRacine, vbCritical
+        Exit Sub
+    End If
+    
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+    
+    ' Vide les onglets de destination avant de coller. Commente si tu veux cumuler
+    On Error Resume Next
+    WbDest.Sheets("solva").Cells.ClearContents
+    WbDest.Sheets("ocaocr").Cells.ClearContents ' ou "ocacor"
+    WbDest.Sheets("etudeinc").Cells.ClearContents
+    On Error GoTo 0
+    
+    Set DossierRacine = fso.GetFolder(CheminRacine)
+    
+    ' Boucle sur chaque sous-dossier
+    For Each SousDossier In DossierRacine.SubFolders
+        CheminFichier = SousDossier.Path & "\cofidis.xlsm"
+        
+        If fso.FileExists(CheminFichier) Then
+            Set WbSource = Workbooks.Open(CheminFichier, ReadOnly:=True)
+            
+            ' === Onglet SOLVA ===
+            On Error Resume Next
+            Set WsSolva = WbSource.Sheets("Solva")
+            On Error GoTo 0
+            If Not WsSolva Is Nothing Then
+                With WbDest.Sheets("solva")
+                    DerniereLigne = WsSolva.Cells(WsSolva.Rows.Count, "A").End(xlUp).Row
+                    LigneDest = .Cells(.Rows.Count, "A").End(xlUp).Row + 1
+                    If LigneDest = 2 Then LigneDest = 1 ' Si onglet vide, commence ligne 1
+                    WsSolva.Rows("1:" & DerniereLigne).Copy .Cells(LigneDest, "A")
+                End With
+                Set WsSolva = Nothing
+            End If
+            
+            ' === Onglet OCACOR / OCAOCR ===
+            On Error Resume Next
+            Set WsOcacor = WbSource.Sheets("ocacor") ' Change en "ocaocr" si besoin
+            If WsOcacor Is Nothing Then Set WsOcacor = WbSource.Sheets("ocaocr")
+            On Error GoTo 0
+            If Not WsOcacor Is Nothing Then
+                With WbDest.Sheets("ocaocr") ' Change en "ocacor" si besoin
+                    DerniereLigne = WsOcacor.Cells(WsOcacor.Rows.Count, "A").End(xlUp).Row
+                    LigneDest = .Cells(.Rows.Count, "A").End(xlUp).Row + 1
+                    If LigneDest = 2 Then LigneDest = 1
+                    WsOcacor.Rows("1:" & DerniereLigne).Copy .Cells(LigneDest, "A")
+                End With
+                Set WsOcacor = Nothing
+            End If
+            
+            ' === Onglet ETUDEINC ===
+            On Error Resume Next
+            Set WsEtudeinc = WbSource.Sheets("etudeinc")
+            On Error GoTo 0
+            If Not WsEtudeinc Is Nothing Then
+                With WbDest.Sheets("etudeinc")
+                    DerniereLigne = WsEtudeinc.Cells(WsEtudeinc.Rows.Count, "A").End(xlUp).Row
+                    LigneDest = .Cells(.Rows.Count, "A").End(xlUp).Row + 1
+                    If LigneDest = 2 Then LigneDest = 1
+                    WsEtudeinc.Rows("1:" & DerniereLigne).Copy .Cells(LigneDest, "A")
+                End With
+                Set WsEtudeinc = Nothing
+            End If
+            
+            WbSource.Close False
+        End If
+    Next SousDossier
+    
+    Application.DisplayAlerts = True
+    Application.ScreenUpdating = True
+    MsgBox "Consolidation terminée !", vbInformation
+    
+    Set fso = Nothing: Set DossierRacine = Nothing: Set SousDossier = Nothing
+    Set WbSource = Nothing: Set WbDest = Nothing
+End Sub

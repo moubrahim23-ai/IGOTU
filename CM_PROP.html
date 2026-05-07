@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prêt Immobilier - Crédit Mutuel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cm-blue: #003399;
+            --cm-red: #E2001A;
+            --cm-bg: #F4F7F9;
+            --text-grey: #4A4A4A;
+            --primary: #2c5a94;
+            --orange: #f58220;
+            --bg: #f4f7f9;
+        }
+        body { margin: 0; font-family: InterVariable, Arial, Helvetica, sans-serif; background-color: #e5eef9; color: #1d1d1f; font-size: 1rem; }
+
+        /* Header & Nav */
+        .top-nav { background: #fff; border-bottom: 1px solid #eee; font-size: 13px; }
+        .container-nav { padding: 8px 5%; display: flex; gap: 15px; }
+        .container-nav a { text-decoration: none; color: #666; }
+        .container-nav a.active { color: var(--cm-blue); font-weight: bold; border-bottom: 2px solid var(--cm-blue); }
+        .main-nav { background: #fff; display: flex; align-items: center; padding: 15px 5%; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .logo-img { width: 150px; margin-right: 20px; }
+        .menu { list-style: none; display: flex; gap: 25px; margin: 0; padding: 0; font-weight: 600; color: var(--cm-blue); }
+        .arrow { font-size: 8px; vertical-align: middle; }
+        .actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+        .btn-primary { background: var(--cm-blue); color: #fff; border: none; padding: 10px 20px; border-radius: 25px; font-weight: bold; cursor: pointer; }
+        .btn-secondary { background: #fff; color: var(--cm-blue); border: 1px solid var(--cm-blue); padding: 10px 20px; border-radius: 25px; font-weight: bold; cursor: pointer; }
+
+        /* Hero */
+        .breadcrumb-container { padding: 15px 5%; font-size: 11px; color: #888; }
+        .hero { padding: 40px 5%; position: relative; }
+        .hero-grid { display: grid; grid-template-columns: 1fr 420px; gap: 60px; max-width: 1200px; margin: 0 auto; }
+        .hero .checklist { display: block; width: 100%; padding-left: 12px; border-left: 1px solid #d4221d; }
+        .sub-title { font-weight: bold; font-size: 12px; color: #777; letter-spacing: 1px; }
+        h1 { font-size: 30px; color: var(--cm-blue); line-height: 1.2; margin: 15px 0; font-family: InterVariable, Arial, Helvetica, sans-serif; }
+        mark { background-color: var(--cm-red); color: #fff; padding: 0 10px; }
+        .intro-p { font-size: 1rem; line-height: 1.6; margin-bottom: 30px; }
+        .checklist { list-style: none; padding: 0; }
+        .checklist li { margin-bottom: 12px; font-size: 15px; display: flex; align-items: center; }
+        .icon-blue { color: var(--cm-blue); margin-right: 15px; font-weight: bold; }
+        .card-promo { background: #fff; padding: 20px; border-radius: 16px; width: 400px; margin-top: 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .promo-label { color: black; font-size: 11px; }
+        .colr { color: #003192; font-size: 1.25rem; }
+        .colr1 { color: #da2d10; font-size: 1.25rem; }
+
+        /* Formulaire */
+        .form-wrapper { position: relative; }
+        .form-card { background: #fff; padding: 40px; border-radius: 15px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); z-index: 2; position: relative; text-align: center; }
+        .blue-accent { position: absolute; top: 20px; right: -40px; bottom: -30px; width: 400px; background: var(--cm-blue); border-radius: 30px; z-index: 1; }
+        .search-btn { border-radius: 50%; cursor: pointer; min-width: 2.5rem; min-height: 2.5rem; margin-left: 1rem; border-width: 1px; background-color: #fff; }
+        .form-desc { font-size: 16px; }
+        .inputs input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .btn-full { background: var(--cm-blue); color: #fff; width: 100%; padding: 15px; border: none; border-radius: 30px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        .phone-box { margin-top: 25px; border-top: 1px solid #eee; padding-top: 20px; }
+        .phone-num { font-size: 20px; font-weight: bold; color: var(--cm-blue); }
+        .phone-num span { font-size: 10px; background: #eee; padding: 2px 5px; border-radius: 3px; color: #333; }
+
+        /* Sidebar Icons */
+        .side-menu { position: fixed; right: 0; top: 40%; background: #fff; border: 1px solid #ddd; border-right: none; border-radius: 10px 0 0 10px; overflow: hidden; z-index: 100; }
+        .side-item { padding: 15px; font-size: 10px; text-align: center; border-bottom: 1px solid #eee; cursor: pointer; transition: 0.3s; width: 60px; background: rgba(211,224,243,.8); }
+        .side-item span { display: block; margin-top: 5px; }
+        .side-item:hover { background: #2B66DA; color: #fff; }
+        .footer-auth { text-align: center; padding: 40px; font-size: 14px; }
+        .footer-auth a { color: var(--cm-blue); font-weight: bold; text-decoration: underline; }
+
+        .consent-box { background: #f8fafd; border-radius: 24px; padding: 20px; margin: 7px 0; font-size: 12px; display: flex; }
+        .consent-box label { gap: 12px; cursor: pointer; }
+        .consent-box input { width: 20px; height: 20px; margin-top: 2px; }
+
+        @keyframes flash {
+            0%, 100% { background-color: transparent; color: #dd2d36; border: 1px solid #dd2d36; }
+            50% { background-color: #dd2d36; color: white; }
+        }
+        .btn-simuler { background: #0066b3; color: white; padding: 14px 32px; border-radius: 40px; font-weight: 600; border: none; font-size: 1.05rem; cursor: pointer; box-shadow: 0 8px 16px rgba(0,102,179,0.25); transition: all 0.15s; display: inline-flex; align-items: center; gap: 10px; margin-top: 18px; animation: flash 1s infinite; }
+        .btn-simuler:hover { background: #004b8f; transform: scale(1.02); }
+
+        /* SIMULATION */
+        .container1 { width: 1200px; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); overflow: hidden; margin: 80px auto 0 auto; }
+        .header1 { padding: 20px 40px; background: linear-gradient(to right, #fff, #eef5ff); }
+        .header1 h1 { margin: 0; color: #003399; }
+        .header1 h1 span { font-weight: 300; }
+        .stepper1 { display: flex; background: #e2eaf1; }
+        .step { flex: 1; padding: 15px; text-align: center; color: #666; font-size: 14px; opacity: 0.6; }
+        .step.active { background: #1a3a5f; color: white; opacity: 1; font-weight: bold; }
+        .main-layout-1 { display: grid; grid-template-columns: 1fr 300px; gap: 30px; padding: 40px; }
+        .form-step { display: none; }
+        .form-step.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .input-group { margin-bottom: 25px; }
+        label { display: block; font-weight: bold; margin-bottom: 10px; color: #444; }
+        input[type="number"], select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; }
+        .toggle-group { display: flex; gap: 10px; }
+        .btn-toggle { flex: 1; padding: 10px; border: 1px solid #ccc; background: white; cursor: pointer; border-radius: 6px; }
+        .btn-toggle.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .nav-buttons { display: flex; gap: 10px; margin-top: 30px; }
+        .btn-primary1 { background: #003399; color: white; border: none; padding: 15px 30px; border-radius: 6px; font-weight: bold; cursor: pointer; flex: 2; box-shadow: 0 4px 0 #003399; }
+	.btn-primary1:hover {background-color: #1E51B7;}
+        .btn-secondary1 { background: #eee; border: none; padding: 15px 20px; border-radius: 6px; cursor: pointer; flex: 1; }
+        .summary-card { border: 1px solid #ddd; border-radius: 10px; padding: 20px; background: #fafafa; }
+        .big-price { font-size: 26px; font-weight: 800; color: #1a3a5f; }
+        .blue-price { font-size: 22px; font-weight: bold; color: var(--primary); }
+        .btn-orange-full { width: 100%; background: var(--orange); border: none; color: white; padding: 15px; border-radius: 6px; font-weight: bold; margin-top: 20px; cursor: pointer; transition: 0.2s; }
+        .btn-orange-full:hover { background: #e06e10; }
+        .btn-green-full { width: 100%; background: #2E7852; border: none; color: white; padding: 15px; border-radius: 6px; font-weight: bold; margin-top: 20px; cursor: pointer; transition: 0.2s; }
+        .btn-green-full:hover { background: #2cca0d; }
+        .details-list { list-style: none; padding: 0; margin-top: 20px; font-size: 14px; }
+        .details-list li { margin-bottom: 8px; }
+
+        /* ══════════════════════════════════════════
+           MODAL RDV (inchangée)
+        ══════════════════════════════════════════ */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 2000; visibility: hidden; opacity: 0; transition: visibility 0.2s, opacity 0.2s; }
+        .modal-overlay.active { visibility: visible; opacity: 1; }
+        .modal-container { background: white; border-radius: 28px; width: 90%; max-width: 500px; box-shadow: 0 20px 35px rgba(0,0,0,0.2); overflow: hidden; font-family: inherit; }
+        .modal-header { background: var(--cm-blue); color: white; padding: 18px 24px; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { margin: 0; font-size: 1.3rem; font-weight: 600; }
+        .modal-close { background: none; border: none; font-size: 26px; color: white; cursor: pointer; line-height: 1; }
+        .modal-body { padding: 24px; }
+        .modal-step { display: none; }
+        .modal-step.active { display: block; }
+        .radio-group { margin: 15px 0; }
+        .radio-group label { display: flex; align-items: center; gap: 12px; font-weight: normal; margin-bottom: 12px; cursor: pointer; }
+        .radio-group input { width: 18px; height: 18px; margin: 0; }
+        .datetime-group { display: flex; gap: 12px; margin: 15px 0; flex-wrap: wrap; }
+        .datetime-group input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 12px; }
+        .sms-group { margin: 15px 0; }
+        .sms-group input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 12px; font-size: 1rem; margin-bottom: 12px; }
+        .modal-btn { background: var(--cm-blue); color: white; border: none; padding: 12px 20px; border-radius: 40px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; transition: 0.2s; }
+        .modal-btn.secondary { background: #e9ecef; color: #2c3e50; margin-top: 10px; }
+        .modal-btn:hover { background: #002277; }
+        .modal-btn.secondary:hover { background: #d0d3d6; }
+        .error-msg { color: #d9534f; font-size: 0.8rem; margin-top: 8px; }
+        .success-msg { color: #2ecc71; font-weight: bold; text-align: center; padding: 10px; }
+
+        /* ══════════════════════════════════════════
+           CHOIX CONTACT (nouveau — intégré dans form-card)
+        ══════════════════════════════════════════ */
+        .contact-choice {
+            display: flex;
+            gap: 10px;
+            margin: 16px 0 4px;
+        }
+        .choice-btn {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 7px;
+            padding: 14px 8px;
+            border-radius: 12px;
+            border: 2px solid #dde3ee;
+            background: #f4f7fb;
+            cursor: pointer;
+            transition: all 0.18s;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #555;
+        }
+        .choice-btn .choice-icon { font-size: 1.5rem; }
+        .choice-btn:hover { border-color: var(--cm-blue); background: #eaf0fb; color: var(--cm-blue); }
+        .choice-btn.selected {
+            border-color: var(--cm-blue);
+            background: var(--cm-blue);
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(0,51,153,0.2);
+        }
+        .choice-btn.selected .choice-desc { color: rgba(255,255,255,0.8); }
+        .choice-desc { font-size: 0.72rem; font-weight: 400; color: #888; }
+
+        /* ══════════════════════════════════════════
+           CHATBOT BUBBLE & POPUP
+        ══════════════════════════════════════════ */
+
+        /* Floating bubble */
+        #chatBubble {
+            position: fixed;
+            bottom: 28px;
+            right: 28px;
+            width: 60px;
+            height: 60px;
+            background: var(--cm-blue);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(0,51,153,0.35);
+            z-index: 3000;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 3px solid #fff;
+        }
+        #chatBubble:hover { transform: scale(1.1); box-shadow: 0 10px 28px rgba(0,51,153,0.45); }
+        #chatBubble svg { width: 26px; height: 26px; fill: #fff; }
+        #chatBubble .bubble-badge {
+            position: absolute;
+            top: -4px; right: -4px;
+            width: 18px; height: 18px;
+            background: var(--cm-red);
+            border-radius: 50%;
+            border: 2px solid #fff;
+            font-size: 0.6rem;
+            font-weight: 700;
+            color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            animation: badgePop 2s ease-in-out infinite;
+        }
+        @keyframes badgePop {
+            0%,100% { transform: scale(1); }
+            50%      { transform: scale(1.2); }
+        }
+
+        /* Chat panel */
+        #chatPanel {
+            position: fixed;
+            bottom: 100px;
+            right: 28px;
+            width: 370px;
+            max-height: 540px;
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.18);
+            display: flex;
+            flex-direction: column;
+            z-index: 2999;
+            overflow: hidden;
+            transform: scale(0.85) translateY(20px);
+            transform-origin: bottom right;
+            opacity: 0;
+            pointer-events: none;
+            transition: transform 0.25s cubic-bezier(.34,1.56,.64,1), opacity 0.2s;
+        }
+        #chatPanel.open {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        /* Chat header */
+        .cp-header {
+            background: var(--cm-blue);
+            padding: 16px 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        .cp-avatar {
+            width: 38px; height: 38px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+            border: 2px solid rgba(255,255,255,0.4);
+        }
+        .cp-title { flex: 1; }
+        .cp-title strong { display: block; color: #fff; font-size: 0.92rem; }
+        .cp-title span { color: rgba(255,255,255,0.75); font-size: 0.75rem; }
+        .cp-close {
+            background: none; border: none; color: rgba(255,255,255,0.8);
+            font-size: 1.3rem; cursor: pointer; padding: 0; line-height: 1;
+            transition: color 0.15s;
+        }
+        .cp-close:hover { color: #fff; }
+
+        /* Chat body */
+        .cp-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: #f4f7fb;
+        }
+        .cp-messages::-webkit-scrollbar { width: 4px; }
+        .cp-messages::-webkit-scrollbar-thumb { background: #ccd6ea; border-radius: 4px; }
+
+        .cp-msg {
+            display: flex;
+            flex-direction: column;
+            animation: cpMsgIn 0.25s ease forwards;
+            opacity: 0;
+        }
+        @keyframes cpMsgIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+        .cp-msg.bot  { align-items: flex-start; }
+        .cp-msg.user { align-items: flex-end; }
+
+        .cp-bubble {
+            max-width: 82%;
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            border-radius: 16px;
+            word-break: break-word;
+        }
+        .cp-msg.bot  .cp-bubble { background: #fff; color: #1d1d1f; border-radius: 16px 16px 16px 4px; border-left: 3px solid var(--cm-blue); box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+        .cp-msg.user .cp-bubble { background: var(--cm-blue); color: #fff; border-radius: 16px 16px 4px 16px; }
+
+        /* Quick reply chips */
+        .cp-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 6px 16px 10px;
+            background: #f4f7fb;
+            border-top: 1px solid #e8edf5;
+        }
+        .cp-chip {
+            background: #fff;
+            border: 1.5px solid var(--cm-blue);
+            color: var(--cm-blue);
+            border-radius: 20px;
+            padding: 5px 12px;
+            font-size: 0.76rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .cp-chip:hover { background: var(--cm-blue); color: #fff; }
+
+        /* Input bar */
+        .cp-input-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: #fff;
+            border-top: 1px solid #e4e8f0;
+            flex-shrink: 0;
+        }
+        #cpInput {
+            flex: 1;
+            border: 1.5px solid #d0d8e8;
+            border-radius: 20px;
+            padding: 9px 14px;
+            font-size: 0.85rem;
+            outline: none;
+            font-family: inherit;
+            transition: border-color 0.15s;
+            background: #f7f9fc;
+        }
+        #cpInput:focus { border-color: var(--cm-blue); background: #fff; }
+        #cpSend {
+            width: 36px; height: 36px;
+            background: var(--cm-blue);
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.15s, transform 0.15s;
+            flex-shrink: 0;
+        }
+        #cpSend:hover { background: #002277; transform: scale(1.08); }
+        #cpSend svg { width: 16px; height: 16px; fill: #fff; }
+
+        /* Typing dots */
+        .cp-typing {
+            display: flex; align-items: center; gap: 4px;
+            padding: 10px 14px;
+            background: #fff;
+            border-radius: 16px 16px 16px 4px;
+            border-left: 3px solid var(--cm-blue);
+            width: fit-content;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        }
+        .cp-typing span {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: var(--cm-blue); opacity: 0.5;
+            animation: cpDot 1.2s infinite ease-in-out;
+        }
+        .cp-typing span:nth-child(2) { animation-delay: 0.2s; }
+        .cp-typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes cpDot {
+            0%,60%,100% { transform: translateY(0); opacity: 0.4; }
+            30%           { transform: translateY(-5px); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="top-nav">
+        <div class="container-nav">
+            <a href="#" class="active">Particuliers</a>
+            <a href="#">Auto-entrepreneurs</a>
+            <a href="#">Professionnels</a>
+            <a href="#">Entreprises</a>
+            <a href="#">Agriculteurs</a>
+            <a href="#">Associations</a>
+        </div>
+    </div>
+    <nav class="main-nav">
+        <div class="logo-section">
+            <img src="\\uf11pu01\ACCESSIBILITÉ_CONSEILLERS\Task_Force_Central\logo (1).svg" alt="Crédit Mutuel" class="logo-img">
+        </div>
+        <ul class="menu">
+            <li>Nos offres <span class="arrow">▼</span></li>
+            <li>Vos projets <span class="arrow">▼</span></li>
+            <li>Simulations</li>
+            <li>Magazine</li>
+        </ul>
+        <button class="search-btn">🔍</button>
+        <div class="actions">
+            <button class="btn-secondary">Ouvrir un compte</button>
+            <button class="btn-primary">Espace client</button>
+        </div>
+    </nav>
+</header>
+
+<div class="breadcrumb-container">
+    <span>Particuliers > Nos offres > Crédits > Prêt immobilier > Prêt immobilier</span>
+</div>
+
+<main class="hero">
+    <div class="hero-grid" id="formulaire">
+        <div class="hero-text">
+            <span class="sub-title">PRÊT MODULIMMO</span>
+            <h1>Prêt immobilier : vos projets immobiliers <br><mark>à portée de main</mark></h1>
+            <p class="intro-p">Financez tous vos projets immobiliers avec notre prêt Modulimmo ! Un prêt modulable qui évolue en même temps que vous et s'adapte à votre situation financière.</p>
+            <ul class="checklist">
+                <li><span class="icon-blue">✓</span> Possibilité de baisser ou d'augmenter vos mensualités¹</li>
+                <li><span class="icon-blue">✓</span> Pas de montant minimum ou maximum</li>
+                <li><span class="icon-blue">✓</span> Emprunt à taux fixe ou variable¹</li>
+                <li><span class="icon-blue">✓</span> Durée d'emprunt jusqu'à 25 ans</li>
+            </ul>
+            <div class="card-promo">
+                <span class="promo-label">SPÉCIAL PRIMO-ACCÉDANT</span>
+                <p><span class="colr"><u>Prêt Coup de Pouce² </u></span><strong><span class="colr1">: un taux à 0,99% jusqu'à 30 000 € pour votre 1er achat immobilier. Du jamais vu !</span></strong></p>
+            </div>
+            <button class="btn-simuler" onclick="document.getElementById('simulationSection').scrollIntoView({behavior:'smooth'})">Simuler mon crédit</button>
+        </div>
+
+        <div class="form-wrapper">
+            <div class="form-card">
+                <p class="form-desc"><strong>Pas encore client ?<br>Comment souhaitez-vous être accompagné ?</strong></p>
+
+                <!-- ── CHOIX DE CONTACT (NOUVEAU) ── -->
+                <div class="contact-choice" id="contactChoice">
+                    <button class="choice-btn" id="choiceChat" onclick="selectChoice('chat')">
+                        <span class="choice-icon">💬</span>
+                        <span>Chat en ligne</span>
+                        <span class="choice-desc">Réponse instantanée</span>
+                    </button>
+                    <button class="choice-btn" id="choiceCall" onclick="selectChoice('call')">
+                        <span class="choice-icon">📞</span>
+                        <span>Être rappelé</span>
+                        <span class="choice-desc">Par un conseiller</span>
+                    </button>
+                </div>
+
+                <!-- Formulaire rappel (affiché si "Être rappelé") -->
+                <div id="callbackForm" style="display:none; margin-top:12px;">
+                    <div class="inputs">
+                        <input type="text" id="formNom" placeholder="Nom*">
+                        <input type="text" id="formPrenom" placeholder="Prénom*">
+                        <div class="row">
+                            <input type="text" id="formTel" placeholder="N° de téléphone*">
+                            <input type="text" id="formCp" placeholder="Code Postal*">
+                        </div>
+                        <input type="email" id="formEmail" placeholder="Adresse e-mail*">
+                    </div>
+                    <div class="consent-box">
+                        <input type="checkbox" id="consentRGPD" required>
+                        <label><span>J'accepte que mes données soient utilisées pour l'étude de mon projet de crédit immobilier et être contacté(e) par un conseiller Crédit Mutuel. <a href="#" style="color:#008c6f;">En savoir plus</a><strong>*</strong></span></label>
+                    </div>
+                    <button class="btn-full" id="obtenirMensualiteBtn">Obtenir une mensualité</button>
+                    <p style="font-size:11px;color:#888;margin-top:6px;">* Information obligatoire</p>
+                </div>
+
+                <div class="phone-box">
+                    <p>Ou appelez le</p>
+                    <div class="phone-num">09 69 391 059 <span>Appel non surtaxé</span></div>
+                    <p style="font-size:12px;color:#888;">de 8h30 à 19h du lundi au vendredi, de 8h30 à 13h le samedi.</p>
+                </div>
+            </div>
+            <div class="blue-accent"></div>
+        </div>
+    </div>
+
+    <!-- SECTION SIMULATION -->
+    <div class="container1" id="simulationSection">
+        <header class="header1">
+            <h1>Simulation <span>Prêt Immobilier</span></h1>
+            <p>Estimation <strong>rapide</strong> de votre capacité d'emprunt</p>
+        </header>
+        <nav class="stepper1" id="stepper">
+            <div class="step active" data-step="1">1. Projet</div>
+            <div class="step" data-step="2">2. Apport</div>
+            <div class="step" data-step="3">3. Revenus</div>
+            <div class="step" data-step="4">4. Charges</div>
+            <div class="step" data-step="5">5. Situation</div>
+        </nav>
+        <div class="main-layout-1">
+            <section class="form-container">
+                <div class="form-step active" id="step1">
+                    <h2>Votre Projet</h2>
+                    <div class="input-group">
+                        <label>Type de bien</label>
+                        <div class="toggle-group" id="bienToggle">
+                            <button class="btn-toggle active" data-type="Ancien">Ancien</button>
+                            <button class="btn-toggle" data-type="Neuf">Neuf</button>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Prix du bien estimé (€)</label>
+                        <input type="number" id="input-prix" value="250000" step="5000">
+                    </div>
+                </div>
+                <div class="form-step" id="step2">
+                    <h2>Votre Apport</h2>
+                    <p>Combien pouvez-vous injecter personnellement ?</p>
+                    <div class="input-group">
+                        <input type="range" id="input-apport" min="0" max="200000" step="1000" value="25000">
+                        <div class="range-val"><span id="val-apport">25 000</span> €</div>
+                    </div>
+                </div>
+                <div class="form-step" id="step3">
+                    <h2>Vos Revenus</h2>
+                    <div class="input-group">
+                        <label>Revenus nets mensuels (foyer)</label>
+                        <input type="number" id="input-revenus" value="3500" step="100">
+                    </div>
+                </div>
+                <div class="form-step" id="step4">
+                    <h2>Vos Charges</h2>
+                    <div class="input-group">
+                        <label>Loyer ou crédits en cours</label>
+                        <input type="number" id="input-charges" value="0" step="50">
+                    </div>
+                </div>
+                <div class="form-step" id="step5">
+                    <h2>Votre Situation</h2>
+                    <div class="input-group">
+                        <label>Profession</label>
+                        <select id="input-job">
+                            <option value="cdi">CDI / Fonctionnaire</option>
+                            <option value="independant">Indépendant / Libéral</option>
+                            <option value="cdd">CDD / Intérim</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="nav-buttons">
+                    <button id="prevBtn1" class="btn-secondary1" style="display:none;">Précédent</button>
+                    <button id="nextBtn1" class="btn-primary1">ÉTAPE SUIVANTE</button>
+                </div>
+            </section>
+            <aside class="summary-card">
+                <h3>Résumé</h3>
+                <div class="res-item">
+                    <small>Montant finançable</small>
+                    <div class="big-price"><span id="res-montant">230 000</span> €</div>
+                </div>
+                <div class="res-item highlight">
+                    <small>Mensualité estimée</small>
+                    <div class="blue-price"><span id="res-mensualite">950</span> € / mois</div>
+                </div>
+                <hr>
+                <ul class="details-list">
+                    <li>Durée : <strong>25 ans</strong></li>
+                    <li>Taux : <strong id="res-taux">1,20 %</strong></li>
+                    <li>Apport : <strong id="res-apport">25 000 €</strong></li>
+                </ul>
+                <button class="btn-orange-full" onclick="document.getElementById('formulaire').scrollIntoView({behavior:'smooth'})">OBTENIR UNE OFFRE !</button>
+                <button class="btn-green-full" onclick="document.getElementById('formulaire').scrollIntoView({behavior:'smooth'})">Me Contacter !</button>
+            </aside>
+        </div>
+
+    </div>
+</main>
+
+<aside class="side-menu">
+    <div class="side-item">📞<span>Nous contacter</span></div>
+    <div class="side-item">📍<span>Trouver une caisse</span></div>
+    <div class="side-item" onclick="openChat()">💬<span>Chat en ligne</span></div>
+</aside>
+
+<footer class="footer-auth">
+    Vous êtes client du Crédit Mutuel ? <a href="#">Authentifiez-vous</a> pour être accompagné par votre conseiller.
+</footer>
+
+<!-- ══════════════════════════════════════════
+     MODAL RAPPEL
+══════════════════════════════════════════ -->
+<div id="rdvModal" class="modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h3>📞 Planifier un appel</h3>
+            <button class="modal-close" id="closeModalBtn">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="modalStep1" class="modal-step active">
+                <p>Quand souhaitez-vous être contacté ?</p>
+                <div class="radio-group">
+                    <label><input type="radio" name="delai" value="<3"> Moins de 3 mois</label>
+                    <label><input type="radio" name="delai" value="3-6"> Entre 3 et 6 mois</label>
+                    <label><input type="radio" name="delai" value=">6"> Plus de 6 mois</label>
+                </div>
+                <button id="step1Continue" class="modal-btn">Continuer</button>
+            </div>
+            <div id="modalStep2" class="modal-step">
+                <p>Choisissez la date et l'heure de l'appel</p>
+                <div class="datetime-group">
+                    <input type="date" id="callDate" min="">
+                    <input type="time" id="callTime" step="1800">
+                </div>
+                <button id="step2Validate" class="modal-btn">Valider</button>
+                <button id="step2Back" class="modal-btn secondary">Retour</button>
+            </div>
+            <div id="modalStep3" class="modal-step">
+                <p>Un code de vérification a été envoyé par SMS à <span id="displayPhone"></span></p>
+                <div class="sms-group">
+                    <input type="text" id="smsCode" placeholder="Code à 6 chiffres" maxlength="6">
+                    <div id="smsError" class="error-msg"></div>
+                </div>
+                <button id="step3Verify" class="modal-btn">Vérifier</button>
+                <button id="step3Back" class="modal-btn secondary">Retour</button>
+            </div>
+            <div id="modalSuccess" class="modal-step" style="text-align:center;">
+                <div class="success-msg">✅ Rendez-vous confirmé !<br>Un conseiller vous contactera le jour et à l'heure choisis.</div>
+                <button id="closeSuccessBtn" class="modal-btn" style="margin-top:20px;">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     CHATBOT BUBBLE
+══════════════════════════════════════════ -->
+<div id="chatBubble" onclick="toggleChat()" title="Chat avec un conseiller">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20 2H4C2.9 2 2 2.9 2 4v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+    </svg>
+    <div class="bubble-badge">1</div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     CHATBOT PANEL
+══════════════════════════════════════════ -->
+<div id="chatPanel">
+    <div class="cp-header">
+        <div class="cp-avatar">🏦</div>
+        <div class="cp-title">
+            <strong>Conseiller Crédit Mutuel</strong>
+            <span>🟢 En ligne · Répond en quelques secondes</span>
+        </div>
+        <button class="cp-close" onclick="toggleChat()">✕</button>
+    </div>
+
+    <div class="cp-messages" id="cpMessages"></div>
+
+    <div class="cp-chips" id="cpChips">
+        <button class="cp-chip" onclick="cpQuick('Quels sont vos taux actuels ?')">Taux actuels</button>
+        <button class="cp-chip" onclick="cpQuick('Comment calculer ma capacité ?')">Capacité d\'emprunt</button>
+        <button class="cp-chip" onclick="cpQuick('C\'est quoi le PTZ ?')">PTZ</button>
+        <button class="cp-chip" onclick="cpQuick('Quels documents fournir ?')">Documents</button>
+        <button class="cp-chip" onclick="cpQuick('Délai d\'obtention ?')">Délai</button>
+    </div>
+
+    <div class="cp-input-bar">
+        <input type="text" id="cpInput" placeholder="Votre question…" onkeydown="if(event.key==='Enter') cpSend()">
+        <button id="cpSend" onclick="cpSend()">
+            <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+        </button>
+    </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════
+   SIMULATION (inchangée)
+══════════════════════════════════════ */
+(function() {
+    const prixInput = document.getElementById('input-prix');
+    const apportRange = document.getElementById('input-apport');
+    const apportSpan = document.getElementById('val-apport');
+    const revenusInput = document.getElementById('input-revenus');
+    const chargesInput = document.getElementById('input-charges');
+    const jobSelect = document.getElementById('input-job');
+    const resMontantSpan = document.getElementById('res-montant');
+    const resMensualiteSpan = document.getElementById('res-mensualite');
+    const resApportSpan = document.getElementById('res-apport');
+    const resTauxSpan = document.getElementById('res-taux');
+    let bienType = 'Ancien';
+    const toggleBtns = document.querySelectorAll('#bienToggle .btn-toggle');
+    toggleBtns.forEach(btn => { btn.addEventListener('click', function() { toggleBtns.forEach(b => b.classList.remove('active')); this.classList.add('active'); bienType = this.getAttribute('data-type'); calculer(); }); });
+    function updateApportDisplay() { let val = parseInt(apportRange.value, 10); if (isNaN(val)) val = 0; apportSpan.innerText = val.toLocaleString('fr-FR'); calculer(); }
+    apportRange.addEventListener('input', updateApportDisplay);
+    prixInput.addEventListener('input', function() { let prix = parseFloat(prixInput.value); if (!isNaN(prix)) { let maxApport = Math.min(prix, 500000); apportRange.max = maxApport; let cur = parseFloat(apportRange.value); if (cur > prix) { apportRange.value = prix; updateApportDisplay(); } } calculer(); });
+    revenusInput.addEventListener('input', calculer);
+    chargesInput.addEventListener('input', calculer);
+    jobSelect.addEventListener('change', calculer);
+    function getTauxAnnuel() { let base = (bienType === 'Ancien') ? 0.0120 : 0.0100; let job = jobSelect.value; if (job === 'cdi') base -= 0.0005; else if (job === 'independant') base += 0.0020; else if (job === 'cdd') base += 0.0010; return Math.min(Math.max(base, 0.008), 0.018); }
+    function calculerMensualite(capital, tauxAnnuel) { if (capital <= 0) return 0; const mois = 25 * 12; const tm = tauxAnnuel / 12; if (tm === 0) return capital / mois; return capital * tm * Math.pow(1+tm, mois) / (Math.pow(1+tm, mois)-1); }
+    function getMaxLoan(revenus, charges, tauxAnnuel) { const cap = (revenus * 0.33) - charges; if (cap <= 0) return 0; const mois = 25*12; const tm = tauxAnnuel/12; if (tm === 0) return cap*mois; return cap*(1-Math.pow(1+tm,-mois))/tm; }
+    function calculer() { let prix = parseFloat(prixInput.value)||0; let apport = parseFloat(apportRange.value)||0; let revenus = parseFloat(revenusInput.value)||0; let charges = parseFloat(chargesInput.value)||0; if (apport > prix) apport = prix; const capital = Math.max(0, prix - apport); const taux = getTauxAnnuel(); resTauxSpan.innerText = (taux*100).toFixed(2).replace('.',',')+' %'; resMontantSpan.innerText = Math.floor(getMaxLoan(revenus, charges, taux)).toLocaleString('fr-FR'); resMensualiteSpan.innerText = Math.round(calculerMensualite(capital, taux)).toLocaleString('fr-FR'); resApportSpan.innerText = apport.toLocaleString('fr-FR')+' €'; }
+    let currentStep = 1;
+    const steps = document.querySelectorAll('.form-step');
+    const stepIndicators = document.querySelectorAll('.step');
+    const prevBtn = document.getElementById('prevBtn1');
+    const nextBtn = document.getElementById('nextBtn1');
+    function updateStepVisibility() { steps.forEach((s, i) => s.classList.toggle('active', i+1===currentStep)); stepIndicators.forEach((s, i) => s.classList.toggle('active', i+1===currentStep)); prevBtn.style.display = currentStep===1?'none':'block'; nextBtn.innerText = currentStep===5?"VOIR MON RÉSULTAT":"ÉTAPE SUIVANTE"; }
+    window.changeStep = function(d) { currentStep = Math.min(Math.max(currentStep+d,1),5); updateStepVisibility(); if(currentStep===5) calculer(); };
+    nextBtn.addEventListener('click', () => { if(currentStep===5){document.querySelector('.summary-card').scrollIntoView({behavior:'smooth',block:'center'}); calculer();}else changeStep(1); });
+    prevBtn.addEventListener('click', () => changeStep(-1));
+    updateApportDisplay(); calculer(); updateStepVisibility();
+    window.calculer = calculer;
+    window.updateVal = function(type, value) { if(type==='bien'){bienType=value; toggleBtns.forEach(btn=>{btn.classList.toggle('active',btn.getAttribute('data-type')===value);}); calculer();} };
+})();
+
+/* ══════════════════════════════════════
+   MODAL RAPPEL (inchangée)
+══════════════════════════════════════ */
+const modal = document.getElementById('rdvModal');
+const openBtn = document.getElementById('obtenirMensualiteBtn');
+const closeBtn = document.getElementById('closeModalBtn');
+const step1Div = document.getElementById('modalStep1');
+const step2Div = document.getElementById('modalStep2');
+const step3Div = document.getElementById('modalStep3');
+const successDiv = document.getElementById('modalSuccess');
+let generatedCode = '', userPhone = '';
+
+function resetModal() { [step1Div,step2Div,step3Div,successDiv].forEach((s,i)=>s.classList.toggle('active',i===0)); document.querySelectorAll('input[name="delai"]').forEach(r=>r.checked=false); document.getElementById('callDate').value=''; document.getElementById('callTime').value=''; document.getElementById('smsCode').value=''; document.getElementById('smsError').innerText=''; }
+
+if(openBtn) openBtn.addEventListener('click', () => { const tel = document.getElementById('formTel'); userPhone = tel ? tel.value.trim() : ''; if(!userPhone){alert("Veuillez renseigner votre numéro de téléphone.");return;} document.getElementById('displayPhone').innerText=userPhone; generatedCode=Math.floor(100000+Math.random()*900000).toString(); alert(`Code de vérification (simulé) : ${generatedCode}\n(Envoyé par SMS à ${userPhone})`); resetModal(); modal.classList.add('active'); });
+closeBtn.addEventListener('click', ()=>modal.classList.remove('active'));
+document.getElementById('closeSuccessBtn').addEventListener('click', ()=>modal.classList.remove('active'));
+document.getElementById('step1Continue').addEventListener('click', ()=>{ if(!document.querySelector('input[name="delai"]:checked')){alert("Veuillez choisir un délai.");return;} step1Div.classList.remove('active'); step2Div.classList.add('active'); document.getElementById('callDate').min=new Date().toISOString().split('T')[0]; });
+document.getElementById('step2Back').addEventListener('click', ()=>{ step2Div.classList.remove('active'); step1Div.classList.add('active'); });
+document.getElementById('step2Validate').addEventListener('click', ()=>{ if(!document.getElementById('callDate').value||!document.getElementById('callTime').value){alert("Veuillez sélectionner une date et une heure.");return;} step2Div.classList.remove('active'); step3Div.classList.add('active'); });
+document.getElementById('step3Back').addEventListener('click', ()=>{ step3Div.classList.remove('active'); step2Div.classList.add('active'); });
+document.getElementById('step3Verify').addEventListener('click', ()=>{ if(document.getElementById('smsCode').value===generatedCode){step3Div.classList.remove('active'); successDiv.classList.add('active');}else{document.getElementById('smsError').innerText="Code incorrect, veuillez réessayer.";} });
+modal.addEventListener('click', e=>{ if(e.target===modal) modal.classList.remove('active'); });
+
+/* ══════════════════════════════════════
+   CHOIX DE CONTACT
+══════════════════════════════════════ */
+function selectChoice(type) {
+    document.getElementById('choiceChat').classList.toggle('selected', type==='chat');
+    document.getElementById('choiceCall').classList.toggle('selected', type==='call');
+    document.getElementById('callbackForm').style.display = type==='call' ? 'block' : 'none';
+    if(type==='chat') openChat();
+}
+
+/* ══════════════════════════════════════
+   CHATBOT LOGIC
+══════════════════════════════════════ */
+const KB = [
+    { k:['taux','taux actuel','taux immobilier','taux 2025','taux 2026'], r:"Les taux immobiliers au Crédit Mutuel sont actuellement entre <strong>3,50% et 4,20%</strong> selon la durée et votre profil. Pour une durée de 25 ans avec un profil CDI, vous pouvez bénéficier d'un taux fixe compétitif. 🏦" },
+    { k:['capacité','capacité d\'emprunt','combien emprunter','montant maximum'], r:"Votre capacité d'emprunt est calculée selon la règle des <strong>33% d'endettement</strong> maximum. Avec 3 500 €/mois de revenus, vous pouvez emprunter jusqu'à environ <strong>230 000 €</strong> sur 25 ans. Utilisez notre simulateur plus bas pour une estimation précise !" },
+    { k:['ptz','prêt à taux zéro','primo-accédant','premier achat'], r:"Le <strong>Prêt à Taux Zéro (PTZ)</strong> est réservé aux primo-accédants qui achètent leur résidence principale. Il peut financer jusqu'à 40% du bien et est sans intérêts. Le Crédit Mutuel vous aide à le combiner avec notre prêt Modulimmo. 🏠" },
+    { k:['document','pièce','justificatif','dossier'], r:"Pour votre dossier de prêt immobilier, vous aurez besoin de :<br>• <strong>Pièce d'identité</strong><br>• <strong>3 derniers bulletins de salaire</strong><br>• <strong>2 derniers avis d'imposition</strong><br>• <strong>Relevés de compte (3 mois)</strong><br>• <strong>Compromis de vente</strong> (si disponible)" },
+    { k:['délai','durée','combien de temps','rapidité','accord'], r:"Le délai d'obtention d'un crédit immobilier au Crédit Mutuel est généralement de <strong>3 à 6 semaines</strong> après dépôt du dossier complet. Un accord de principe peut être obtenu sous <strong>48 à 72h</strong> selon votre situation. ⏱️" },
+    { k:['assurance','assurance emprunteur','assurance décès','délégation'], r:"L'assurance emprunteur est obligatoire pour tout crédit immobilier. Le Crédit Mutuel propose sa propre assurance, mais depuis la <strong>loi Lemoine</strong>, vous pouvez choisir librement votre assureur. Notre tarif est très compétitif, à partir de <strong>0,09% du capital emprunté</strong>. 🛡️" },
+    { k:['apport','apport personnel','sans apport'], r:"Un apport personnel d'au moins <strong>10% du prix du bien</strong> est généralement recommandé pour couvrir les frais de notaire. Certains profils peuvent emprunter sans apport, notamment les CDI avec de bons revenus. Votre conseiller étudiera votre situation. 💰" },
+    { k:['modulimmo','modulable','modifier mensualité'], r:"Le prêt <strong>Modulimmo</strong> vous permet de modifier vos mensualités en cours de prêt : hausse ou baisse possible dans une fourchette définie. C'est idéal si vos revenus évoluent (naissance, promotion…). Cette flexibilité est offerte sans frais supplémentaires. ✅" },
+    { k:['frais notaire','notaire','frais annexes'], r:"Les frais de notaire représentent environ <strong>7 à 8% pour l'ancien</strong> et <strong>2 à 3% pour le neuf</strong>. Exemple : pour un bien de 250 000 €, comptez environ 17 500 € à 20 000 € de frais de notaire dans l'ancien. 📋" },
+    { k:['bonjour','bonsoir','salut','allo','aide','hello'], r:"Bonjour ! 👋 Je suis l'assistant virtuel du <strong>Crédit Mutuel</strong>. Je peux vous renseigner sur votre prêt immobilier : taux, capacité d'emprunt, documents nécessaires, PTZ… Par quel sujet souhaitez-vous commencer ?" },
+];
+
+function findAnswer(q) {
+    const ql = q.toLowerCase();
+    for (const item of KB) {
+        if (item.k.some(k => ql.includes(k))) return item.r;
+    }
+    return "Je n'ai pas de réponse précise à cette question, mais un de nos <strong>conseillers peut vous rappeler</strong> pour en discuter. Cliquez sur « Être rappelé » dans le formulaire ou composez le <strong>09 69 391 059</strong>. 📞";
+}
+
+let chatOpen = false;
+let chatInitialized = false;
+
+function openChat() {
+    if (!chatOpen) toggleChat();
+}
+
+function toggleChat() {
+    chatOpen = !chatOpen;
+    document.getElementById('chatPanel').classList.toggle('open', chatOpen);
+    if (chatOpen && !chatInitialized) {
+        chatInitialized = true;
+        document.querySelector('#chatBubble .bubble-badge').style.display = 'none';
+        setTimeout(() => cpAddMsg('bot', "Bonjour ! 👋 Je suis l'assistant <strong>Crédit Mutuel</strong>. Posez-moi vos questions sur votre projet immobilier, ou choisissez un thème ci-dessous."), 400);
+    }
+    if (chatOpen) setTimeout(()=>document.getElementById('cpInput').focus(), 300);
+}
+
+function cpAddMsg(role, html) {
+    const container = document.getElementById('cpMessages');
+    const el = document.createElement('div');
+    el.className = `cp-msg ${role}`;
+    el.innerHTML = `<div class="cp-bubble">${html}</div>`;
+    container.appendChild(el);
+    container.scrollTop = container.scrollHeight;
+}
+
+function cpShowTyping() {
+    const container = document.getElementById('cpMessages');
+    const el = document.createElement('div');
+    el.className = 'cp-msg bot';
+    el.id = 'cpTyping';
+    el.innerHTML = `<div class="cp-typing"><span></span><span></span><span></span></div>`;
+    container.appendChild(el);
+    container.scrollTop = container.scrollHeight;
+}
+
+function cpRemoveTyping() { const t = document.getElementById('cpTyping'); if(t) t.remove(); }
+
+function cpSend() {
+    const input = document.getElementById('cpInput');
+    const q = input.value.trim();
+    if (!q) return;
+    cpAddMsg('user', q);
+    input.value = '';
+    cpShowTyping();
+    setTimeout(() => { cpRemoveTyping(); cpAddMsg('bot', findAnswer(q)); }, 750 + Math.random()*400);
+}
+
+function cpQuick(q) {
+    if (!chatOpen) openChat();
+    setTimeout(() => { cpAddMsg('user', q); cpShowTyping(); setTimeout(() => { cpRemoveTyping(); cpAddMsg('bot', findAnswer(q)); }, 750); }, chatInitialized ? 0 : 600);
+}
+</script>
+</body>
+</html>

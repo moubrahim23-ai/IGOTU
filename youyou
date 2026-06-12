@@ -1,214 +1,1125 @@
-Sub SplitCSVByMonth_V2()
+' Module-level variables
+Dim currentRow As Long
+Dim isEditing As Boolean   ' optional, kept from original logic
 
-    Dim sourceFolder As String
-    Dim destFolder As String
-    Dim fileName As String
-    Dim wbSource As Workbook
-    Dim wsSource As Worksheet
-    Dim wbNew As Workbook
-    Dim wsNew As Worksheet
-    Dim lastRow As Long
-    Dim dateCol As Long
-    Dim monthList As Object
-    Dim monthKey As Variant
-    Dim monthValue As String
-    Dim newFileName As String
-    Dim fso As Object
-    Dim i As Long
-    Dim dateValue As Variant
-    Dim destRow As Long
-    Dim lineCount As Long
-
-    Application.ScreenUpdating = False
-    Application.DisplayAlerts = False
-
-    sourceFolder = "C:\Users\CHAACHYO\Desktop\Nouveau dossier (4)\Nouveau dossier\"
-    destFolder = "C:\Users\CHAACHYO\Desktop\Nouveau dossier (4)\2026\"
-
-    Set fso = CreateObject("Scripting.FileSystemObject")
-    If Not fso.folderExists(destFolder) Then
-        fso.CreateFolder destFolder
+' ------------------------------------------------------------------
+' Helper functions to get the correct worksheet based on cmbTraitement
+' ------------------------------------------------------------------
+Private Function GetTempSheet() As Worksheet
+    If cmbTraitement.Value = "SOLVA" Then
+        Set GetTempSheet = ThisWorkbook.Worksheets("temp_Solva")
+    Else
+        Set GetTempSheet = ThisWorkbook.Worksheets("temp")
     End If
+End Function
 
-    fileName = Dir(sourceFolder & "*.csv")
+Private Function GetExtractSheet() As Worksheet
+    If cmbTraitement.Value = "SOLVA" Then
+        Set GetExtractSheet = ThisWorkbook.Worksheets("extraction_solva")
+    Else
+        Set GetExtractSheet = ThisWorkbook.Worksheets("extraction")
+    End If
+End Function
+
+' ------------------------------------------------------------------
+' Refresh the ListView (named "vue") according to the active temp sheet
+' ------------------------------------------------------------------
+Private Sub RefreshListView()
+    Dim ws As Worksheet
+    Set ws = GetTempSheet()
     
-    Do While fileName <> ""
-        Debug.Print "=== Traitement de : " & fileName & " ==="
-        
-        ' Ouvrir en spécifiant le séparateur (point-virgule fréquent en français)
-        Workbooks.OpenText fileName:=sourceFolder & fileName, _
-                           Origin:=65001, _
-                           StartRow:=1, _
-                           DataType:=xlDelimited, _
-                           TextQualifier:=xlDoubleQuote, _
-                           ConsecutiveDelimiter:=False, _
-                           Semicolon:=True, _
-                           Comma:=False, _
-                           Tab:=False, _
-                           Local:=True
-        
-        Set wbSource = ActiveWorkbook
-        Set wsSource = wbSource.Sheets(1)
-
-        ' Trouver la colonne date
-        dateCol = FindDateColumnEnhanced(wsSource)
-        Debug.Print "  Colonne date trouvée : " & dateCol
-
-        If dateCol = 0 Then
-            MsgBox "Colonne date non trouvée dans : " & fileName
-            wbSource.Close False
-            fileName = Dir
-            GoTo NextFile
-        End If
-
-        lastRow = wsSource.Cells(wsSource.Rows.Count, dateCol).End(xlUp).Row
-        Debug.Print "  Nombre de lignes total : " & lastRow
-
-        If lastRow <= 1 Then
-            MsgBox "Fichier vide ou sans données : " & fileName
-            wbSource.Close False
-            fileName = Dir
-            GoTo NextFile
-        End If
-
-        ' Dictionnaire pour les mois
-        Set monthList = CreateObject("Scripting.Dictionary")
-        
-        ' Première passe : identifier tous les mois
-        For i = 2 To lastRow
-            dateValue = ParseFrenchDate(wsSource.Cells(i, dateCol).Value)
-            If IsDate(dateValue) Then
-                monthValue = Format(CDate(dateValue), "yyyy_mm")
-                If Not monthList.Exists(monthValue) Then
-                    monthList.Add monthValue, New Collection
-                End If
-            End If
-        Next i
-        
-        Debug.Print "  Mois uniques trouvés : " & monthList.Count
-        
-        If monthList.Count = 0 Then
-            MsgBox "Aucune date valide dans : " & fileName & vbCrLf & _
-                   "Première valeur de date : " & wsSource.Cells(2, dateCol).Value
-            wbSource.Close False
-            fileName = Dir
-            GoTo NextFile
-        End If
-
-        ' Pour chaque mois, créer un fichier
-        For Each monthKey In monthList.Keys
-            Set wbNew = Workbooks.Add
-            Set wsNew = wbNew.Sheets(1)
-            
-            ' Copier l'en-tête
-            wsSource.Rows(1).Copy Destination:=wsNew.Rows(1)
-            destRow = 2
-            lineCount = 0
-            
-            ' Copier les lignes correspondant au mois
-            For i = 2 To lastRow
-                dateValue = ParseFrenchDate(wsSource.Cells(i, dateCol).Value)
-                If IsDate(dateValue) Then
-                    If Format(CDate(dateValue), "yyyy_mm") = monthKey Then
-                        wsSource.Rows(i).Copy Destination:=wsNew.Rows(destRow)
-                        destRow = destRow + 1
-                        lineCount = lineCount + 1
-                    End If
-                End If
-            Next i
-            
-            If lineCount > 0 Then
-                wsNew.Columns.AutoFit
-                newFileName = Replace(fileName, ".csv", "") & "_" & monthKey & ".csv"
-                
-                ' Sauvegarder avec séparateur point-virgule (format FR)
-                wbNew.SaveAs fileName:=destFolder & newFileName, _
-                              FileFormat:=xlCSV, _
-                              Local:=True
-                
-                wbNew.Close False
-                Debug.Print "    " & newFileName & " : " & lineCount & " lignes"
-            Else
-                wbNew.Close False
-            End If
-        Next monthKey
-
-        wbSource.Close False
-        
-NextFile:
-        fileName = Dir
-    Loop
-
-    Application.ScreenUpdating = True
-    Application.DisplayAlerts = True
-    MsgBox "Traitement terminé !"
+    Dim lastRow As Long
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    
+    If lastRow < 2 Then
+        vue.Clear
+        Exit Sub
+    End If
+    
+    Dim rng1 As Range
+    Dim colCount As Integer
+    
+    If cmbTraitement.Value = "SOLVA" Then
+        colCount = 8   ' Columns A to F in temp_Solva
+        Set rng1 = ws.Range("A1:I" & lastRow)
+    Else
+        colCount = 9   ' Columns A to I in temp
+        Set rng1 = ws.Range("A1:I" & lastRow)
+    End If
+    
+    With vue
+        .Clear
+        .ColumnCount = colCount
+        .List = rng1.Value
+        ' Adjust column widths as needed
+        .ColumnWidths = "80;80;80;80;80;80;80;80;80"
+    End With
 End Sub
 
-Function FindDateColumnEnhanced(ws As Worksheet) As Long
-    Dim col As Long
-    Dim headerCell As Range
-    Dim headerValue As String
+' ------------------------------------------------------------------
+' Clear all input fields
+' ------------------------------------------------------------------
+Sub clearform()
+    cmbCredit.Value = ""
+    cmbProduits.Value = ""
+    txtDossier.Value = ""
+    cmbSignature.Value = ""
+    cmbDecision.Value = ""
+    comment.Value = ""
+    Solvabilité.Value = ""
+    cmbDecisionSolva.Value = ""
+    cmbType.Value = ""
+End Sub
+
+' ------------------------------------------------------------------
+' Logging procedures
+' ------------------------------------------------------------------
+Sub log_Etape1()
+    Dim wx As Worksheet
+    Set wx = GetExtractSheet()
     
-    For col = 1 To ws.UsedRange.Columns.Count
-        Set headerCell = ws.Cells(1, col)
-        If Not IsEmpty(headerCell.Value) Then
-            headerValue = LCase(CStr(headerCell.Value))
-            If InStr(headerValue, "date") > 0 Or _
-               InStr(headerValue, "jour") > 0 Or _
-               InStr(headerValue, "time") > 0 Then
-                FindDateColumnEnhanced = col
-                Exit Function
+    Dim canal As String
+    
+    If optBO.Value = True Then
+        canal = "Back-Office"
+    ElseIf optFO.Value = True Then
+        canal = "Front-Office"
+    Else
+        MsgBox "Veuillez sélectionner un CANAL : Back-Office ou Front-Office."
+        Exit Sub
+    End If
+    
+    Dim lastRow As Long, ligne As Long
+    lastRow = wx.Cells(wx.Rows.Count, 1).End(xlUp).Row
+    ligne = lastRow + 1
+    
+    With wx
+        .Cells(ligne, 1).Value = Environ("USERNAME")
+        .Cells(ligne, 2).Value = cmbTraitement.Value
+        .Cells(ligne, 3).Value = Now
+        .Cells(ligne, 5).Value = cmbCredit.Value
+        .Cells(ligne, 6).Value = cmbProduits.Value
+        .Cells(ligne, 7).Value = txtDossier.Value
+        .Cells(ligne, 12).Value = canal
+    End With
+End Sub
+
+Sub logSolva_Etape1()
+    Dim wx As Worksheet
+    Set wx = ThisWorkbook.Worksheets("extraction_solva")
+    
+    Dim canal As String
+    
+    If optBO.Value = True Then
+        canal = "Back-Office"
+    ElseIf optFO.Value = True Then
+        canal = "Front-Office"
+    Else
+        MsgBox "Veuillez sélectionner un CANAL : Back-Office ou Front-Office."
+        Exit Sub
+    End If
+    
+    Dim lastRow As Long, ligne As Long
+    lastRow = wx.Cells(wx.Rows.Count, 1).End(xlUp).Row
+    ligne = lastRow + 1
+    
+    With wx
+        .Cells(ligne, 1).Value = Environ("USERNAME")
+        .Cells(ligne, 2).Value = cmbTraitement.Value
+        .Cells(ligne, 3).Value = Now
+        .Cells(ligne, 5).Value = Solvabilité.Value
+        .Cells(ligne, 6).Value = txtDossier.Value
+        .Cells(ligne, 11).Value = canal
+    End With
+End Sub
+
+Sub log_Etape2()
+    Dim wx As Worksheet
+    Set wx = GetExtractSheet()
+    
+    ' currentRow refers to the row in the temp sheet
+    ' We need to find the matching row in extraction sheet using the reference
+    Dim refValue As String
+    Dim tempWs As Worksheet
+    Set tempWs = GetTempSheet()
+    refValue = tempWs.Cells(currentRow, 7).Value   ' column G = dossier ref
+    
+    Dim lastRow As Long, i As Long
+    lastRow = wx.Cells(wx.Rows.Count, 1).End(xlUp).Row
+    Dim targetRow As Long
+    targetRow = 0
+    
+    For i = 2 To lastRow
+        If wx.Cells(i, 7).Value = refValue Then
+            targetRow = i
+            Exit For
+        End If
+    Next i
+    
+    If targetRow = 0 Then
+        ' If not found, append as new row (should not happen normally)
+        targetRow = lastRow + 1
+        wx.Cells(targetRow, 1).Value = Environ("USERNAME")
+        wx.Cells(targetRow, 2).Value = cmbTraitement.Value
+        wx.Cells(targetRow, 3).Value = tempWs.Cells(currentRow, 3).Value
+        wx.Cells(targetRow, 7).Value = refValue
+    End If
+    
+    With wx
+        .Cells(targetRow, 4).Value = Now
+        .Cells(targetRow, 8).Value = cmbSignature.Value
+        .Cells(targetRow, 9).Value = cmbDecision.Value
+        .Cells(targetRow, 10).Value = comment.Value
+        .Cells(targetRow, 11).Value = .Cells(targetRow, 4).Value - .Cells(targetRow, 3).Value
+    End With
+End Sub
+
+Sub log_Etape2_Solva()
+    Dim wx As Worksheet
+    Set wx = ThisWorkbook.Worksheets("extraction_solva")
+    
+    Dim tempWs As Worksheet
+    Set tempWs = GetTempSheet()
+    Dim refValue As String
+    refValue = tempWs.Cells(currentRow, 6).Value   ' column F = dossier ref in temp_Solva
+    
+    Dim lastRow As Long, i As Long
+    lastRow = wx.Cells(wx.Rows.Count, 1).End(xlUp).Row
+    Dim targetRow As Long
+    targetRow = 0
+    
+    For i = 2 To lastRow
+        If wx.Cells(i, 6).Value = refValue Then
+            targetRow = i
+            Exit For
+        End If
+    Next i
+    
+    If targetRow = 0 Then
+        targetRow = lastRow + 1
+        wx.Cells(targetRow, 1).Value = Environ("USERNAME")
+        wx.Cells(targetRow, 2).Value = "SOLVA"
+        wx.Cells(targetRow, 3).Value = tempWs.Cells(currentRow, 3).Value
+        wx.Cells(targetRow, 5).Value = Solvabilité.Value
+        wx.Cells(targetRow, 6).Value = refValue
+    End If
+    
+    With wx
+        .Cells(targetRow, 4).Value = Now
+        .Cells(targetRow, 7).Value = cmbType.Value
+        .Cells(targetRow, 8).Value = cmbDecisionSolva.Value
+        .Cells(targetRow, 9).Value = comment.Value
+        .Cells(targetRow, 10).Value = .Cells(targetRow, 4).Value - .Cells(targetRow, 3).Value
+    End With
+End Sub
+
+' ------------------------------------------------------------------
+' Add new record (cmb_Ajouter_Click)
+' ------------------------------------------------------------------
+Private Sub cmb_Ajouter_Click()
+    Dim ws As Worksheet
+    Set ws = GetTempSheet()
+    Dim wsTemp As Worksheet
+    Set wsTemp = GetTempSheet()
+    
+    Dim lastRow As Long, i As Long
+    lastRow = wsTemp.Cells(wsTemp.Rows.Count, 1).End(xlUp).Row
+    
+    For i = 2 To lastRow
+        ' Si la ligne a une heure de début (colonne C) mais pas d'heure de fin (colonne D)
+        If wsTemp.Cells(i, 3).Value <> "" And wsTemp.Cells(i, 4).Value = "" Then
+            MsgBox "Veuillez compléter la ligne précédente (en attente) avant d'ajouter un nouveau dossier.", vbExclamation
+            Exit Sub
+        End If
+    Next i
+    
+    Dim refValue As String
+    refValue = Trim(txtDossier.Value)
+    If cmbTraitement.Value = "" Then
+            MsgBox "Veuillez choisir un type de traitement"
+            Exit Sub
+    End If
+    If cmbTraitement.Value = "SOLVA" Then
+        If refValue = "" Then
+            MsgBox "Veuillez saisir une référence dossier.", vbExclamation
+            Exit Sub
+        ElseIf Solvabilité.Value = "" Then
+            MsgBox "Veuillez remplir la Solvabilité.", vbExclamation
+            Exit Sub
+        End If
+    Else
+        If refValue = "" Then
+            MsgBox "Veuillez saisir une référence dossier.", vbExclamation
+            Exit Sub
+        ElseIf cmbProduits.Value = "" Then
+            MsgBox "Veuillez choisir un type de Produit.", vbExclamation
+            Exit Sub
+        ElseIf cmbCredit.Value = "" Then
+            MsgBox "Veuillez choisir un type de Crédit.", vbExclamation
+            Exit Sub
+        End If
+    End If
+    
+    Dim canal As String
+    
+    If optBO.Value = True Then
+        canal = "Back-Office"
+    ElseIf optFO.Value = True Then
+        canal = "Front-Office"
+    Else
+        MsgBox "Veuillez sélectionner un CANAL : Back-Office ou Front-Office."
+        Exit Sub
+    End If
+ 
+
+    
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    
+    ' Determine column where reference is stored
+    Dim refCol As Long
+    If cmbTraitement.Value = "SOLVA" Then
+        refCol = 6   ' column F
+    Else
+        refCol = 7   ' column G
+    End If
+    
+    ' Check for duplicate reference
+    For i = 2 To lastRow
+        If ws.Cells(i, refCol).Value = refValue Then
+            MsgBox "La référence dossier '" & refValue & "' existe déjà !", vbCritical
+            Exit Sub
+        End If
+    Next i
+    
+    Dim newRow As Long
+    newRow = lastRow + 1
+    
+    With ws
+        .Cells(newRow, 1).Value = Environ("USERNAME")
+        .Cells(newRow, 2).Value = cmbTraitement.Value
+        .Cells(newRow, 3).Value = Now
+        If cmbTraitement.Value = "SOLVA" Then
+            .Cells(newRow, 5).Value = Solvabilité.Value
+            .Cells(newRow, 6).Value = txtDossier.Value
+            .Cells(newRow, 11).Value = canal
+        Else
+            .Cells(newRow, 5).Value = cmbCredit.Value
+            .Cells(newRow, 6).Value = cmbProduits.Value
+            .Cells(newRow, 7).Value = txtDossier.Value
+            .Cells(newRow, 12).Value = canal
+        End If
+    End With
+    
+    ' Log to extraction sheet
+    If cmbTraitement.Value = "SOLVA" Then
+        Call logSolva_Etape1
+    Else
+        Call log_Etape1
+    End If
+    
+    Call clearform
+    Call RefreshListView
+    MsgBox "Dossier ajouté avec succès !", vbInformation
+End Sub
+
+' ------------------------------------------------------------------
+' Save modifications (cmb_Terminer_Click)
+' ------------------------------------------------------------------
+Private Sub cmb_Terminer_Click()
+    Dim ws As Worksheet
+    Set ws = GetTempSheet()
+    
+    If currentRow = 0 Then
+        MsgBox "Veuillez d'abord rechercher et sélectionner une ligne à modifier.", vbExclamation
+        Exit Sub
+    End If
+    
+    If cmbTraitement.Value = "SOLVA" Then
+        ' SOLVA case
+        If cmbDecisionSolva.Value = "" Then
+            MsgBox "Veuillez sélectionner une décision solvabilité."
+            Exit Sub
+        End If
+        
+        With ws
+            .Cells(currentRow, 4).Value = Now
+            .Cells(currentRow, 5).Value = Solvabilité.Value
+            .Cells(currentRow, 7).Value = cmbType.Value
+            .Cells(currentRow, 8).Value = cmbDecisionSolva.Value
+            .Cells(currentRow, 9).Value = comment.Value
+            .Cells(currentRow, 10).Value = .Cells(currentRow, 4).Value - .Cells(currentRow, 3).Value
+        End With
+        
+        Call log_Etape2_Solva
+    Else
+        ' Normal case (OCAOCR / ETUDEINC)
+        If cmbSignature.Value = "" Then
+            MsgBox "Veuillez remplir l'activité."
+            Exit Sub
+        ElseIf cmbDecision.Value = "" Then
+            MsgBox "Veuillez sélectionner le produit."
+            Exit Sub
+        End If
+        
+        With ws
+            .Cells(currentRow, 4).Value = Now
+            .Cells(currentRow, 8).Value = cmbSignature.Value
+            .Cells(currentRow, 9).Value = cmbDecision.Value
+            .Cells(currentRow, 10).Value = comment.Value
+            .Cells(currentRow, 11).Value = .Cells(currentRow, 4).Value - .Cells(currentRow, 3).Value
+        End With
+        
+        Call log_Etape2
+    End If
+    
+    Call clearform
+    Call RefreshListView
+    MsgBox "Modifications enregistrées.", vbInformation
+End Sub
+
+' ------------------------------------------------------------------
+' Clear all data from the active temp sheet
+' ------------------------------------------------------------------
+Private Sub cmb_vider_Click()
+    Dim ws As Worksheet
+    Set ws = GetTempSheet()
+    ws.Rows("2:" & ws.Rows.Count).ClearContents
+    Call RefreshListView
+    MsgBox "Vidage effectué avec succès !"
+End Sub
+
+' ------------------------------------------------------------------
+' Export standard extraction sheet to CSV (original functionality)
+' ------------------------------------------------------------------
+Private Sub cmb_Sauvegarder_Click()
+
+    Dim wx As Worksheet
+    Set wx = ThisWorkbook.Worksheets("extraction")
+
+    Dim lastRow As Long, i As Long
+    lastRow = wx.Cells(wx.Rows.Count, 1).End(xlUp).Row
+
+    If lastRow < 2 Then
+        MsgBox "Aucune donnée à sauvegarder.", vbExclamation
+        Exit Sub
+    End If
+
+    Dim userName As String
+    userName = Environ("USERNAME")
+
+    Dim ligneDate As String, moisLigne As String, anneeLigne As String
+    Dim filePath As String, ligneCSV As String
+    Dim fileDict As Object
+    Set fileDict = CreateObject("Scripting.Dictionary")
+
+    Dim fileNum As Integer
+    Dim nbExport As Long
+    Dim key As Variant
+
+    nbExport = 0
+
+    For i = 2 To lastRow
+
+        ligneDate = wx.Cells(i, 3).Value
+
+        If ligneDate <> "" Then
+
+            moisLigne = Mid(ligneDate, 4, 2)
+            anneeLigne = Mid(ligneDate, 7, 4)
+
+            filePath = "\\uf11pu01\COFIDIS_MANAGERS\01-Production\11-Production DFRA Acceptation\Données Userform\Data CSV\OCAOCR\" & _
+                       userName & "_" & moisLigne & "_" & anneeLigne & ".csv"
+
+            If Not fileDict.Exists(filePath) Then
+
+                fileNum = FreeFile
+
+                'Créer le fichier et écrire l'entête s'il n'existe pas
+                If Dir(filePath) = "" Then
+                    Open filePath For Output As #fileNum
+
+                    Print #fileNum, _
+                    "Collaborateur;Typologies;Date debut;Date fin;Type Credit;type Produit;Référence dossier;Type Signature;Decision;Commentaire;DMT;CANAL"
+
+                    Close #fileNum
+                    fileNum = FreeFile
+                End If
+
+                Open filePath For Append As #fileNum
+                fileDict.Add filePath, fileNum
+
             End If
-        End If
-    Next col
-    
-    ' Si non trouvé, demande manuelle
-    On Error Resume Next
-    FindDateColumnEnhanced = Application.InputBox( _
-        "Sélectionnez la colonne contenant les dates", Type:=8).Column
-    On Error GoTo 0
-End Function
 
-Function ParseFrenchDate(val As Variant) As Variant
-    ' Convertit une date au format FR en valeur Date VBA
-    Dim temp As String
-    Dim parts() As String
-    
-    If IsEmpty(val) Then
-        ParseFrenchDate = Empty
-        Exit Function
-    End If
-    
-    If IsDate(val) Then
-        ParseFrenchDate = CDate(val)
-        Exit Function
-    End If
-    
-    ' Tenter de parser jj/mm/aaaa ou jj/mm/aa
-    temp = Trim(CStr(val))
-    If temp Like "##/##/####" Or temp Like "##/##/##" Then
-        parts = Split(temp, "/")
-        If UBound(parts) = 2 Then
-            On Error Resume Next
-            ParseFrenchDate = DateSerial(CLng(parts(2)), CLng(parts(1)), CLng(parts(0)))
-            On Error GoTo 0
-            If IsDate(ParseFrenchDate) Then Exit Function
-        End If
-    End If
-    
-    ' Tenter jj-mm-aaaa
-   If temp Like "##-##-####" Then
-        parts = Split(temp, "-")
-        If UBound(parts) = 2 Then
-            On Error Resume Next
-            ParseFrenchDate = DateSerial(CLng(parts(2)), CLng(parts(1)), CLng(parts(0)))
-            On Error GoTo 0
-            If IsDate(ParseFrenchDate) Then Exit Function
-        End If
-    End If
-    
-    ' Par défaut
-    ParseFrenchDate = Empty
-End Function
+            fileNum = fileDict(filePath)
 
+            ligneCSV = _
+                wx.Cells(i, 1).Value & ";" & _
+                wx.Cells(i, 2).Value & ";" & _
+                wx.Cells(i, 3).Value & ";" & _
+                wx.Cells(i, 4).Value & ";" & _
+                wx.Cells(i, 5).Value & ";" & _
+                wx.Cells(i, 6).Value & ";" & _
+                wx.Cells(i, 7).Value & ";" & _
+                wx.Cells(i, 8).Value & ";" & _
+                wx.Cells(i, 9).Value & ";" & _
+                wx.Cells(i, 10).Value & ";" & _
+                wx.Cells(i, 11).Value & ";" & _
+                wx.Cells(i, 12).Value
+
+            Print #fileNum, ligneCSV
+
+            nbExport = nbExport + 1
+
+        End If
+
+    Next i
+
+    'Fermer tous les fichiers ouverts
+    For Each key In fileDict.Keys
+        Close #fileDict(key)
+    Next key
+
+    'Vider les données de la feuille
+    wx.Rows("2:" & wx.Rows.Count).ClearContents
+
+    Call SauvegarderSolva
+
+    MsgBox nbExport & " ligne(s) sauvegardée(s) dans les fichiers mensuels.", vbInformation
+
+End Sub
+
+' ------------------------------------------------------------------
+' Export solva extraction sheet to CSV (new button)
+' ------------------------------------------------------------------
+Private Sub SauvegarderSolva()
+
+    Dim wx As Worksheet
+    Set wx = ThisWorkbook.Worksheets("extraction_solva")
+
+    Dim lastRow As Long, i As Long
+    lastRow = wx.Cells(wx.Rows.Count, 1).End(xlUp).Row
+
+    If lastRow < 2 Then
+        MsgBox "Aucune donnée SOLVA à sauvegarder.", vbExclamation
+        Exit Sub
+    End If
+
+    Dim userName As String
+    userName = Environ("USERNAME")
+
+    Dim ligneDate As String, moisLigne As String, anneeLigne As String
+    Dim filePath As String, ligneCSV As String
+    Dim fileDict As Object
+    Set fileDict = CreateObject("Scripting.Dictionary")
+
+    Dim fileNum As Integer
+    Dim nbExport As Long
+    Dim key As Variant
+
+    nbExport = 0
+
+    For i = 2 To lastRow
+
+        ligneDate = wx.Cells(i, 3).Value
+
+        If ligneDate <> "" Then
+
+            moisLigne = Mid(ligneDate, 4, 2)
+            anneeLigne = Mid(ligneDate, 7, 4)
+
+            filePath = "\\uf11pu01\COFIDIS_MANAGERS\01-Production\11-Production DFRA Acceptation\Données Userform\Data CSV\SOLVA\" & _
+                       userName & "_" & moisLigne & "_" & anneeLigne & ".csv"
+
+            If Not fileDict.Exists(filePath) Then
+
+                fileNum = FreeFile
+
+                'Créer le fichier et ajouter l'entête s'il n'existe pas
+                If Dir(filePath) = "" Then
+                    Open filePath For Output As #fileNum
+
+                    Print #fileNum, _
+                    "Collaborateur;Typologies;Date debut;Date fin;Solvabilité;Référence de dossier;Type;Décision;Commentaire;Dmt;CANAL"
+
+                    Close #fileNum
+                    fileNum = FreeFile
+                End If
+
+                Open filePath For Append As #fileNum
+                fileDict.Add filePath, fileNum
+
+            End If
+
+            fileNum = fileDict(filePath)
+
+            ligneCSV = _
+                wx.Cells(i, 1).Value & ";" & _
+                wx.Cells(i, 2).Value & ";" & _
+                wx.Cells(i, 3).Value & ";" & _
+                wx.Cells(i, 4).Value & ";" & _
+                wx.Cells(i, 5).Value & ";" & _
+                wx.Cells(i, 6).Value & ";" & _
+                wx.Cells(i, 7).Value & ";" & _
+                wx.Cells(i, 8).Value & ";" & _
+                wx.Cells(i, 9).Value & ";" & _
+                wx.Cells(i, 10).Value & ";" & _
+                wx.Cells(i, 11).Value
+
+            Print #fileNum, ligneCSV
+
+            nbExport = nbExport + 1
+
+        End If
+
+    Next i
+
+    'Fermer tous les fichiers ouverts
+    For Each key In fileDict.Keys
+        Close #fileDict(key)
+    Next key
+
+    'Vider la feuille
+    wx.Rows("2:" & wx.Rows.Count).ClearContents
+
+    MsgBox nbExport & " ligne(s) SOLVA sauvegardée(s) dans les fichiers mensuels.", vbInformation
+
+End Sub
+
+
+
+' ------------------------------------------------------------------
+' Show/hide controls based on cmbTraitement selection
+' ------------------------------------------------------------------
+Private Sub CommandButton1_Click()
+    If cmbTraitement.Value = "N1" Or cmbTraitement.Value = "N1" Or cmbTraitement.Value = "ETUDEINC" Then
+        Solvabilité.Visible = False
+        Label11.Visible = False
+        cmbType.Visible = False
+        cmbDecisionSolva.Visible = False
+        
+        Label8.Visible = True
+        Label4.Visible = True
+        Label7.Visible = True
+        cmbCredit.Visible = True
+        cmbProduits.Visible = True
+        cmbSignature.Visible = True
+        cmbDecision.Visible = True
+    ElseIf cmbTraitement.Value = "SOLVA" Then
+        cmbCredit.Visible = False
+        cmbProduits.Visible = False
+        cmbSignature.Visible = False
+        cmbDecision.Visible = False
+        Label4.Visible = False
+        Label7.Visible = False
+        Label8.Visible = False
+        
+        cmbDecisionSolva.Visible = True
+        cmbType.Visible = True
+        Solvabilité.Visible = True
+        Label11.Visible = True
+    End If
+    If cmbTraitement.Value = "ETUDEINC" Then
+        cmbCredit.Clear
+        cmbCredit.AddItem "ETUDEINC"
+        cmbCredit.AddItem "CLOSUIVI"
+        cmbCredit.AddItem "INFOCLT"
+        cmbCredit.AddItem "APPELCLT"
+    ElseIf cmbTraitement.Value = "N1" Or cmbTraitement.Value = "N2" Then
+        cmbCredit.Clear
+        cmbCredit.AddItem "AUG"
+        cmbCredit.AddItem "OUV"
+    End If
+    Call RefreshListView
+    currentRow = 0
+End Sub
+' ------------------------------------------------------------------
+' Form initialization
+' ------------------------------------------------------------------
+Private Sub UserForm_Initialize()
+    Call StartClock   ' assumed external procedure
+    ' Populate comboboxes
+    cmbTraitement.Clear
+    cmbTraitement.AddItem "N1"
+    cmbTraitement.AddItem "N2"
+    cmbTraitement.AddItem "ETUDEINC"
+    cmbTraitement.AddItem "SOLVA"
+    
+    cmbDecisionSolva.Clear
+    cmbDecisionSolva.AddItem "OK"
+    cmbDecisionSolva.AddItem "KO"
+    
+    cmbType.Clear
+    cmbType.AddItem "GRILLE"
+    cmbType.AddItem "WEB"
+    
+    cmbCredit.Clear
+
+    
+    cmbProduits.Clear
+    cmbProduits.AddItem "AUG ACC"
+    cmbProduits.AddItem "OUV ACC"
+    cmbProduits.AddItem "AUG PART"
+    cmbProduits.AddItem "OUV PSM"
+    cmbProduits.AddItem "OUV PSM/PSM"
+    cmbProduits.AddItem "OUV PSM d'AUG"
+    
+    cmbSignature.Clear
+    cmbSignature.AddItem "SE"
+    cmbSignature.AddItem "Papier"
+    
+    cmbDecision.Clear
+    cmbDecision.AddItem "OCA"
+    cmbDecision.AddItem "OCR"
+    cmbDecision.AddItem "OCI"
+    cmbDecision.AddItem "CPP"
+    cmbDecision.AddItem "TDT"
+    
+    agent.Value = "Bonjour " & Application.userName
+    
+    Call RefreshListView
+End Sub
+
+Private Sub UserForm_Terminate()
+    Call StopClock   ' assumed external procedure
+End Sub
+
+Private Sub UserForm_activate()
+    Me.StartUpPosition = 0
+    Me.Left = Application.Left + (Application.Width - Me.Width) / 2
+    Me.Top = Application.Top + (Application.Height - Me.Height) / 2
+End Sub
+' ------------------------------------------------------------------
+' Search functions (dynamically use the active temp sheet)
+' ------------------------------------------------------------------
+Private Sub recherche_Cred_Click()
+    SearchData_Cred
+End Sub
+Private Sub recherche_Ref_Click()
+    SearchData_REF
+End Sub
+Private Sub recherche_Type_Click()
+    SearchData_Type
+End Sub
+Private Sub recherche_Sign_Click()
+    SearchData_Sign
+End Sub
+Sub SearchData_REF()
+
+    Dim ws As Worksheet
+    If cmbTraitement.Value = "SOLVA" Then
+    Set ws = ThisWorkbook.Worksheets("temp_Solva")
+    Else
+    Set ws = ThisWorkbook.Worksheets("temp")
+
+    vue.Clear
+    vue.ColumnWidths = "80;80;100;100;80;80;80;80"
+    vue.ColumnHeads = True
+    
+    If ws.Cells(2, 1).Value = "" Then
+        MsgBox "Aucune donnée trouvée.", vbInformation
+        Exit Sub
+    End If
+
+    Dim lastRow As Long
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    
+    vue.ColumnCount = 10
+    
+    Dim searchContract As String
+    searchContract = InputBox("Entrez la référence dossier :", "Recherche")
+
+    Dim i As Long
+    
+    If searchContract = "" Then
+        vue.List = ws.Range("A2:I" & lastRow).Value
+        Set rng1 = ws.Range("A1:I" & ws.Range("A" & ws.Rows.Count).End(xlUp).Row)
+        With Me.vue
+            .BorderStyle = 1
+            .BorderColor = &H80000012
+            
+            .Clear
+        '.ColumnHeads = True
+            .ColumnCount = rng1.Columns.Count
+            MyArray1 = rng1
+            .List = MyArray1
+            .ColumnWidths = "80;80;100;100;80;80;80;80"
+        End With
+        Exit Sub
+    End If
+    
+    Dim results As Collection
+    Set results = New Collection
+    
+    For i = 2 To lastRow
+        If InStr(1, ws.Cells(i, 7).Value, searchContract, vbTextCompare) > 0 Then
+            results.Add i
+        End If
+    Next i
+    
+    If results.Count = 0 Then
+        MsgBox "Aucun dossier trouvé.", vbInformation
+        Exit Sub
+    End If
+    
+    Dim arr()
+    ReDim arr(1 To results.Count, 1 To 9)
+    
+    For i = 1 To results.Count
+        arr(i, 1) = ws.Cells(results(i), 1).Value
+        arr(i, 2) = ws.Cells(results(i), 2).Value
+        arr(i, 3) = ws.Cells(results(i), 3).Value
+        arr(i, 4) = ws.Cells(results(i), 4).Value
+        arr(i, 5) = ws.Cells(results(i), 5).Value
+        arr(i, 6) = ws.Cells(results(i), 6).Value
+        arr(i, 7) = ws.Cells(results(i), 7).Value
+        arr(i, 8) = ws.Cells(results(i), 8).Value
+        arr(i, 9) = ws.Cells(results(i), 9).Value
+    Next i
+
+    vue.List = arr
+    End If
+
+End Sub
+Sub SearchData_Cred()
+
+        Dim ws As Worksheet
+    Set ws = ThisWorkbook.Worksheets("temp")
+
+    vue.Clear
+    vue.ColumnWidths = "80;80;100;100;80;80;80;80"
+    vue.ColumnHeads = True
+    
+    If ws.Cells(2, 1).Value = "" Then
+        MsgBox "Aucune donnée trouvée.", vbInformation
+        Exit Sub
+    End If
+
+    Dim lastRow As Long
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    
+    vue.ColumnCount = 10
+    
+    Dim searchContract As String
+    searchContract = InputBox("Entrez la référence dossier :", "Recherche")
+
+    Dim i As Long
+    
+    If searchContract = "" Then
+        vue.List = ws.Range("A2:I" & lastRow).Value
+        Set rng1 = ws.Range("A1:I" & ws.Range("A" & ws.Rows.Count).End(xlUp).Row)
+        With Me.vue
+            .BorderStyle = 1
+            .BorderColor = &H80000012
+            
+            .Clear
+        '.ColumnHeads = True
+            .ColumnCount = rng1.Columns.Count
+            MyArray1 = rng1
+            .List = MyArray1
+            .ColumnWidths = "80;80;100;100;80;80;80;80;80"
+        End With
+        Exit Sub
+    End If
+    
+    Dim results As Collection
+    Set results = New Collection
+    
+    For i = 2 To lastRow
+        If InStr(1, ws.Cells(i, 5).Value, searchContract, vbTextCompare) > 0 Then
+            results.Add i
+        End If
+    Next i
+    
+    If results.Count = 0 Then
+        MsgBox "Aucun dossier trouvé.", vbInformation
+        Exit Sub
+    End If
+    
+    Dim arr()
+    ReDim arr(1 To results.Count, 1 To 9)
+    
+    For i = 1 To results.Count
+        arr(i, 1) = ws.Cells(results(i), 1).Value
+        arr(i, 2) = ws.Cells(results(i), 2).Value
+        arr(i, 3) = ws.Cells(results(i), 3).Value
+        arr(i, 4) = ws.Cells(results(i), 4).Value
+        arr(i, 5) = ws.Cells(results(i), 5).Value
+        arr(i, 6) = ws.Cells(results(i), 6).Value
+        arr(i, 7) = ws.Cells(results(i), 7).Value
+        arr(i, 8) = ws.Cells(results(i), 8).Value
+        arr(i, 9) = ws.Cells(results(i), 9).Value
+    Next i
+
+    vue.List = arr
+End Sub
+Sub SearchData_Type()
+
+    Dim ws As Worksheet
+    If cmbTraitement.Value = "SOLVA" Then
+    Set ws = ThisWorkbook.Worksheets("temp_Solva")
+    vue.Clear
+    vue.ColumnWidths = "80;80;100;100;80;80;80;80"
+    vue.ColumnHeads = True
+    
+    If ws.Cells(2, 1).Value = "" Then
+        MsgBox "Aucune donnée trouvée.", vbInformation
+        Exit Sub
+    End If
+
+    Dim lastRow As Long
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    
+    vue.ColumnCount = 10
+    
+    Dim searchContract As String
+    searchContract = InputBox("Entrez la référence dossier :", "Recherche")
+
+    Dim i As Long
+    
+    If searchContract = "" Then
+        vue.List = ws.Range("A2:I" & lastRow).Value
+        Set rng1 = ws.Range("A1:I" & ws.Range("A" & ws.Rows.Count).End(xlUp).Row)
+        With Me.vue
+            .BorderStyle = 1
+            .BorderColor = &H80000012
+            
+            .Clear
+        '.ColumnHeads = True
+            .ColumnCount = rng1.Columns.Count
+            MyArray1 = rng1
+            .List = MyArray1
+            .ColumnWidths = "80;80;100;100;80;80;80;80"
+        End With
+        Exit Sub
+    End If
+    
+    Dim results As Collection
+    Set results = New Collection
+    
+    For i = 2 To lastRow
+        If InStr(1, ws.Cells(i, 2).Value, searchContract, vbTextCompare) > 0 Then
+            results.Add i
+        End If
+    Next i
+    
+    If results.Count = 0 Then
+        MsgBox "Aucun dossier trouvé.", vbInformation
+        Exit Sub
+    End If
+    
+    Dim arr()
+    ReDim arr(1 To results.Count, 1 To 9)
+    
+    For i = 1 To results.Count
+        arr(i, 1) = ws.Cells(results(i), 1).Value
+        arr(i, 2) = ws.Cells(results(i), 2).Value
+        arr(i, 3) = ws.Cells(results(i), 3).Value
+        arr(i, 4) = ws.Cells(results(i), 4).Value
+        arr(i, 5) = ws.Cells(results(i), 5).Value
+        arr(i, 6) = ws.Cells(results(i), 6).Value
+        arr(i, 7) = ws.Cells(results(i), 7).Value
+        arr(i, 8) = ws.Cells(results(i), 8).Value
+        arr(i, 9) = ws.Cells(results(i), 9).Value
+    Next i
+
+    vue.List = arr
+    Else
+    Set ws = ThisWorkbook.Worksheets("temp")
+    vue.Clear
+    vue.ColumnWidths = "80;80;100;100;80;80;80;80"
+    vue.ColumnHeads = True
+    
+    If ws.Cells(2, 1).Value = "" Then
+        MsgBox "Aucune donnée trouvée.", vbInformation
+        Exit Sub
+    End If
+
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    
+    vue.ColumnCount = 10
+
+    searchContract = InputBox("Entrez la référence dossier :", "Recherche")
+
+    
+    If searchContract = "" Then
+        vue.List = ws.Range("A2:I" & lastRow).Value
+        Set rng1 = ws.Range("A1:I" & ws.Range("A" & ws.Rows.Count).End(xlUp).Row)
+        With Me.vue
+            .BorderStyle = 1
+            .BorderColor = &H80000012
+            
+            .Clear
+        '.ColumnHeads = True
+            .ColumnCount = rng1.Columns.Count
+            MyArray1 = rng1
+            .List = MyArray1
+            .ColumnWidths = "80;80;100;100;80;80;80;80"
+        End With
+        Exit Sub
+    End If
+
+    Set results = New Collection
+    
+    For i = 2 To lastRow
+        If InStr(1, ws.Cells(i, 2).Value, searchContract, vbTextCompare) > 0 Then
+            results.Add i
+        End If
+    Next i
+    
+    If results.Count = 0 Then
+        MsgBox "Aucun dossier trouvé.", vbInformation
+        Exit Sub
+    End If
+
+    ReDim arr(1 To results.Count, 1 To 9)
+    
+    For i = 1 To results.Count
+        arr(i, 1) = ws.Cells(results(i), 1).Value
+        arr(i, 2) = ws.Cells(results(i), 2).Value
+        arr(i, 3) = ws.Cells(results(i), 3).Value
+        arr(i, 4) = ws.Cells(results(i), 4).Value
+        arr(i, 5) = ws.Cells(results(i), 5).Value
+        arr(i, 6) = ws.Cells(results(i), 6).Value
+        arr(i, 7) = ws.Cells(results(i), 7).Value
+        arr(i, 8) = ws.Cells(results(i), 8).Value
+        arr(i, 9) = ws.Cells(results(i), 9).Value
+    Next i
+
+    vue.List = arr
+    End If
+    
+
+End Sub
+
+Sub SearchData_Sign()
+
+        Dim ws As Worksheet
+    Set ws = ThisWorkbook.Worksheets("temp")
+
+    vue.Clear
+    vue.ColumnWidths = "80;80;100;100;80;80;80;80"
+    vue.ColumnHeads = True
+    
+    If ws.Cells(2, 1).Value = "" Then
+        MsgBox "Aucune donnée trouvée.", vbInformation
+        Exit Sub
+    End If
+
+    Dim lastRow As Long
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    
+    vue.ColumnCount = 10
+    
+    Dim searchContract As String
+    searchContract = InputBox("Entrez la référence dossier :", "Recherche")
+
+    Dim i As Long
+    
+    If searchContract = "" Then
+        vue.List = ws.Range("A2:I" & lastRow).Value
+        Set rng1 = ws.Range("A1:I" & ws.Range("A" & ws.Rows.Count).End(xlUp).Row)
+        With Me.vue
+            .BorderStyle = 1
+            .BorderColor = &H80000012
+            
+            .Clear
+        '.ColumnHeads = True
+            .ColumnCount = rng1.Columns.Count
+            MyArray1 = rng1
+            .List = MyArray1
+            .ColumnWidths = "80;80;100;100;80;80;80;80"
+        End With
+        Exit Sub
+    End If
+    
+    Dim results As Collection
+    Set results = New Collection
+    
+    For i = 2 To lastRow
+        If InStr(1, ws.Cells(i, 8).Value, searchContract, vbTextCompare) > 0 Then
+            results.Add i
+        End If
+    Next i
+    
+    If results.Count = 0 Then
+        MsgBox "Aucun dossier trouvé.", vbInformation
+        Exit Sub
+    End If
+    
+    Dim arr()
+    ReDim arr(1 To results.Count, 1 To 9)
+    
+    For i = 1 To results.Count
+        arr(i, 1) = ws.Cells(results(i), 1).Value
+        arr(i, 2) = ws.Cells(results(i), 2).Value
+        arr(i, 3) = ws.Cells(results(i), 3).Value
+        arr(i, 4) = ws.Cells(results(i), 4).Value
+        arr(i, 5) = ws.Cells(results(i), 5).Value
+        arr(i, 6) = ws.Cells(results(i), 6).Value
+        arr(i, 7) = ws.Cells(results(i), 7).Value
+        arr(i, 8) = ws.Cells(results(i), 8).Value
+        arr(i, 9) = ws.Cells(results(i), 9).Value
+    Next i
+
+    vue.List = arr
+
+End Sub
+
+' ------------------------------------------------------------------
+' Load selected row from ListView into form controls
+' ------------------------------------------------------------------
+Private Sub vue_Click()
+    If vue.ListIndex >= 0 Then LoadSelectedData
+End Sub
+
+Sub LoadSelectedData()
+    Dim ws As Worksheet
+    Set ws = GetTempSheet()
+    
+    If vue.ListIndex < 0 Then Exit Sub
+    
+    ' Identify the reference value to locate the row in the sheet
+    Dim refValue As String
+    Dim refCol As Long
+    If cmbTraitement.Value = "SOLVA" Then
+        refCol = 6
+        refValue = vue.List(vue.ListIndex, 5)   ' column 6 (F) is 0-based? Actually List is 0-based: column index 5 = 6th column
+        ' Correction: List array is 0-based, so column 5 (index) = 6th column
+        refValue = vue.List(vue.ListIndex, 5)
+    Else
+        refCol = 7
+        refValue = vue.List(vue.ListIndex, 6)   ' column 7 (G)
+    End If
+    
+    Dim lastRow As Long, i As Long
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    
+    For i = 2 To lastRow
+        If ws.Cells(i, refCol).Value = refValue Then
+            currentRow = i
+            Exit For
+        End If
+    Next i
+    
+    If currentRow = 0 Then Exit Sub
+    
+    With ws
+        If cmbTraitement.Value = "SOLVA" Then
+            Solvabilité.Value = .Cells(currentRow, 5).Value
+            txtDossier.Value = .Cells(currentRow, 6).Value
+            cmbType.Value = .Cells(currentRow, 7).Value
+            cmbDecisionSolva.Value = .Cells(currentRow, 8).Value   ' assuming decision stored in col5
+            comment.Value = .Cells(currentRow, 9).Value
+        Else
+            cmbCredit.Value = .Cells(currentRow, 5).Value
+            cmbProduits.Value = .Cells(currentRow, 6).Value
+            txtDossier.Value = .Cells(currentRow, 7).Value
+            cmbSignature.Value = .Cells(currentRow, 8).Value
+            cmbDecision.Value = .Cells(currentRow, 9).Value
+            comment.Value = .Cells(currentRow, 10).Value
+        End If
+    End With
+    
+    isEditing = True
+End Sub
 

@@ -1,0 +1,786 @@
+' ============================================================
+' AJOUT V6 - PLANNING MANAGERS VIA USERFORM
+' ============================================================
+' INSTRUCTIONS D'INTEGRATION :
+'
+' 1. MODULE STANDARD (ModuleManagers)
+'    Copier la section "MODULE : ModuleManagers" dans un nouveau
+'    module standard nommé "ModuleManagers".
+'
+' 2. USERFORM (UFManagers)
+'    - Insérer un nouveau UserForm nommé "UFManagers"
+'    - Copier le code VBA de la section "CODE USERFORM : UFManagers"
+'      dans le module code du UserForm
+'    - Créer les contrôles listés dans la section "DESIGN USERFORM"
+'
+' 3. MODIFIER LE MODULE PRINCIPAL (Module1 / ModulePrincipal)
+'    - Dans Sub OuvrirUFMain() : rien à changer
+'    - Ajouter le lanceur OuvrirUFManagers() (section fin du fichier)
+'    - Dans UFMain : ajouter un bouton "Planning Managers" qui appelle
+'      OuvrirUFManagers
+'
+' 4. FEUILLE MANAGERS
+'    La feuille "MANAGERS" est créée automatiquement au premier
+'    enregistrement via le UserForm.
+' ============================================================
+
+
+' ============================================================
+' ============================================================
+' SECTION 1 : MODULE STANDARD — ModuleManagers
+' ============================================================
+' ============================================================
+
+' Copier tout ce qui suit jusqu'à "FIN MODULE ModuleManagers"
+' dans un module standard nommé ModuleManagers.
+
+' ============================================================
+' TYPE MANAGER
+' ============================================================
+' (A placer dans le meme module ou dans le module principal)
+'
+' Type Manager
+'     Nom         As String
+'     Prenom      As String
+'     NomComplet  As String
+'     Projet      As String
+'     Ville       As String
+' End Type
+'
+' NB : si vous préférez, vous pouvez réutiliser le Type Collaborateur
+'      existant plutôt que déclarer Manager.
+' ============================================================
+
+Option Explicit
+
+' ============================================================
+' INITIALISER LA FEUILLE MANAGERS
+' ============================================================
+Sub InitialiserFeuilleManagers()
+    Dim ws As Worksheet
+    If Not FeuilleExiste("MANAGERS") Then
+        Set ws = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+        ws.Name = "MANAGERS"
+    Else
+        Set ws = ThisWorkbook.Sheets("MANAGERS")
+    End If
+
+    ' Ecrire les en-têtes seulement si la feuille est vide
+    If ws.Cells(1, 1).Value <> "" Then Exit Sub
+
+    Dim headers As Variant
+    headers = Array( _
+        "Semaine", "Nom", "Prénom", "Nom Complet", "Projet", "Ville", _
+        "LUN. Entrée", "LUN. Sortie", _
+        "MAR. Entrée", "MAR. Sortie", _
+        "MER. Entrée", "MER. Sortie", _
+        "JEU. Entrée", "JEU. Sortie", _
+        "VEN. Entrée", "VEN. Sortie", _
+        "SAM. Entrée", "SAM. Sortie", _
+        "DIM. Entrée", "DIM. Sortie", _
+        "NB HEURES", "Commentaire")
+
+    Dim c As Integer
+    For c = 0 To UBound(headers)
+        ws.Cells(1, c + 1).Value = headers(c)
+    Next c
+
+    With ws.Rows(1)
+        .Font.Bold = True
+        .Interior.Color = RGB(31, 73, 125)
+        .Font.Color = RGB(255, 255, 255)
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .RowHeight = 30
+    End With
+
+    ' Largeurs colonnes
+    ws.Columns(1).ColumnWidth = 10   ' Semaine
+    ws.Columns(2).ColumnWidth = 18   ' Nom
+    ws.Columns(3).ColumnWidth = 18   ' Prénom
+    ws.Columns(4).ColumnWidth = 28   ' Nom Complet
+    ws.Columns(5).ColumnWidth = 16   ' Projet
+    ws.Columns(6).ColumnWidth = 14   ' Ville
+    Dim d As Integer
+    For d = 7 To 20
+        ws.Columns(d).ColumnWidth = 11
+    Next d
+    ws.Columns(21).ColumnWidth = 12  ' NB HEURES
+    ws.Columns(22).ColumnWidth = 30  ' Commentaire
+
+    ' Geler la première ligne
+    ws.Activate
+    ws.Rows(2).Select
+    ActiveWindow.FreezePanes = True
+End Sub
+
+' ============================================================
+' ENREGISTRER LE PLANNING D'UN MANAGER (appelé par UFManagers)
+' ============================================================
+Sub EnregistrerPlanningManager( _
+    nomManager As String, prenomManager As String, _
+    projetManager As String, villeManager As String, _
+    semaine As Integer, _
+    horaires(1 To 7, 1 To 2) As String, _
+    commentaire As String)
+
+    ' S'assurer que la feuille existe et est initialisée
+    InitialiserFeuilleManagers
+
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("MANAGERS")
+
+    Dim nomComplet As String
+    nomComplet = Trim(prenomManager & " " & nomManager)
+
+    ' Chercher si une ligne pour ce manager/semaine existe déjà
+    Dim lastRow As Long
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    Dim lr As Long: lr = 0
+    Dim i As Long
+    For i = 2 To lastRow
+        If CStr(ws.Cells(i, 1).Value) = CStr(semaine) And _
+           ws.Cells(i, 4).Value = nomComplet Then
+            lr = i: Exit For
+        End If
+    Next i
+
+    ' Créer une nouvelle ligne si inexistante
+    If lr = 0 Then
+        lr = lastRow + 1
+    End If
+
+    ' Remplir les données fixes
+    ws.Cells(lr, 1).Value = semaine
+    ws.Cells(lr, 2).Value = UCase(Trim(nomManager))
+    ws.Cells(lr, 3).Value = Trim(prenomManager)
+    ws.Cells(lr, 4).Value = nomComplet
+    ws.Cells(lr, 5).Value = projetManager
+    ws.Cells(lr, 6).Value = villeManager
+
+    ' Remplir horaires jours (cols 7-20 : Lun=7/8, Mar=9/10 ... Dim=19/20)
+    Dim j As Integer
+    Dim totalMin As Double: totalMin = 0
+    For j = 1 To 7
+        Dim colE As Integer: colE = 5 + (j * 2)  ' 7, 9, 11, 13, 15, 17, 19
+        Dim colS As Integer: colS = colE + 1       ' 8, 10, 12, 14, 16, 18, 20
+
+        Dim valE As String: valE = Trim(horaires(j, 1))
+        Dim valS As String: valS = Trim(horaires(j, 2))
+
+        ws.Cells(lr, colE).Value = IIf(valE = "", "OFF", valE)
+        ws.Cells(lr, colS).Value = IIf(valS = "", "OFF", valS)
+        ws.Cells(lr, colE).HorizontalAlignment = xlCenter
+        ws.Cells(lr, colS).HorizontalAlignment = xlCenter
+
+        ' Coloriser selon statut
+        Dim cel As Range
+        Dim celS2 As Range
+        Set cel = ws.Cells(lr, colE)
+        Set celS2 = ws.Cells(lr, colS)
+
+        Select Case UCase(valE)
+            Case "OFF", ""
+                cel.Interior.Color = RGB(255, 199, 206)
+                cel.Font.Color = RGB(192, 0, 0)
+                cel.Font.Bold = True
+                celS2.Interior.Color = RGB(255, 199, 206)
+                celS2.Font.Color = RGB(192, 0, 0)
+                celS2.Font.Bold = True
+            Case "CONGE"
+                cel.Interior.Color = RGB(255, 230, 153)
+                cel.Font.Color = RGB(156, 87, 0)
+                cel.Font.Bold = True
+                celS2.Interior.Color = RGB(255, 230, 153)
+                celS2.Font.Color = RGB(156, 87, 0)
+                celS2.Font.Bold = True
+            Case Else
+                cel.Interior.Color = RGB(197, 224, 180)
+                cel.Font.Color = RGB(0, 97, 0)
+                cel.Font.Bold = False
+                celS2.Interior.Color = RGB(197, 224, 180)
+                celS2.Font.Color = RGB(0, 97, 0)
+                celS2.Font.Bold = False
+                ' Cumul heures
+                If valE <> "" And valS <> "" Then
+                    totalMin = totalMin + HeuresNettes(valE, valS, "", "")
+                End If
+        End Select
+    Next j
+
+    ' NB HEURES
+    ws.Cells(lr, 21).Value = Round(totalMin, 2)
+    ws.Cells(lr, 21).NumberFormat = "0.00"
+    ws.Cells(lr, 21).HorizontalAlignment = xlCenter
+    ws.Cells(lr, 21).Font.Bold = True
+    ws.Cells(lr, 21).Interior.Color = RGB(197, 224, 180)
+    ws.Cells(lr, 21).Font.Color = RGB(0, 97, 0)
+
+    ' Commentaire
+    ws.Cells(lr, 22).Value = commentaire
+
+    ' Couleur de ligne alternée pour colonnes fixes (1-6)
+    Dim bgColor As Long
+    bgColor = IIf(lr Mod 2 = 0, RGB(235, 241, 255), RGB(255, 255, 255))
+    Dim col As Integer
+    For col = 1 To 6
+        ws.Cells(lr, col).Interior.Color = bgColor
+    Next col
+    ws.Rows(lr).RowHeight = 18
+
+    ' Ajuster les colonnes
+    ws.Columns("A:V").AutoFit
+
+End Sub
+
+' ============================================================
+' SUPPRIMER LE PLANNING D'UN MANAGER pour une semaine donnée
+' ============================================================
+Sub SupprimerPlanningManager(nomComplet As String, semaine As Integer)
+    If Not FeuilleExiste("MANAGERS") Then Exit Sub
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("MANAGERS")
+    Dim lastRow As Long
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    Dim i As Long
+    For i = lastRow To 2 Step -1
+        If CStr(ws.Cells(i, 1).Value) = CStr(semaine) And _
+           ws.Cells(i, 4).Value = nomComplet Then
+            ws.Rows(i).Delete
+            Exit For
+        End If
+    Next i
+End Sub
+
+' ============================================================
+' AFFICHER LE PLANNING MANAGERS (feuille formatée)
+' ============================================================
+Sub GenererAffichageManagers()
+    If Not FeuilleExiste("MANAGERS") Then
+        MsgBox "Aucune donnée manager. Saisissez d'abord un planning via le UserForm.", vbInformation
+        Exit Sub
+    End If
+
+    Dim wsSrc As Worksheet
+    Set wsSrc = ThisWorkbook.Sheets("MANAGERS")
+    Dim lastRow As Long
+    lastRow = wsSrc.Cells(wsSrc.Rows.Count, 1).End(xlUp).Row
+    If lastRow < 2 Then
+        MsgBox "Aucune donnée manager enregistrée.", vbInformation
+        Exit Sub
+    End If
+
+    ' Filtrer sur la semaine courante
+    Dim semCible As Integer
+    semCible = Application.WorksheetFunction.WeekNum(LundiSemaine(), 2)
+
+    ' Créer/vider feuille d'affichage
+    Dim wsAff As Worksheet
+    If Not FeuilleExiste("PLANNING MANAGERS") Then
+        Set wsAff = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+        wsAff.Name = "PLANNING MANAGERS"
+    Else
+        Set wsAff = ThisWorkbook.Sheets("PLANNING MANAGERS")
+        wsAff.Cells.Clear
+    End If
+
+    ' En-tête
+    wsAff.Cells(1, 1).Value = "PLANNING MANAGERS - Semaine " & semCible & _
+        "  |  Du " & Format(LundiSemaine(), "dd/mm/yyyy") & _
+        " au " & Format(LundiSemaine() + 6, "dd/mm/yyyy")
+    With wsAff.Cells(1, 1)
+        .Font.Bold = True
+        .Font.Size = 13
+        .Interior.Color = RGB(31, 73, 125)
+        .Font.Color = RGB(255, 255, 255)
+    End With
+    wsAff.Range(wsAff.Cells(1, 1), wsAff.Cells(1, 10)).Merge
+
+    ' En-têtes colonnes
+    Dim hdrs As Variant
+    hdrs = Array("Manager", "Projet", "Ville", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche")
+    Dim c As Integer
+    For c = 0 To UBound(hdrs)
+        wsAff.Cells(2, c + 1).Value = hdrs(c)
+    Next c
+    With wsAff.Rows(2)
+        .Font.Bold = True
+        .Interior.Color = RGB(68, 114, 196)
+        .Font.Color = RGB(255, 255, 255)
+        .HorizontalAlignment = xlCenter
+    End With
+
+    ' Copier les lignes de la semaine cible
+    Dim ligneAff As Integer: ligneAff = 3
+    Dim i As Long
+    For i = 2 To lastRow
+        If CInt(wsSrc.Cells(i, 1).Value) = semCible Then
+            wsAff.Cells(ligneAff, 1).Value = wsSrc.Cells(i, 4).Value  ' Nom complet
+            wsAff.Cells(ligneAff, 2).Value = wsSrc.Cells(i, 5).Value  ' Projet
+            wsAff.Cells(ligneAff, 3).Value = wsSrc.Cells(i, 6).Value  ' Ville
+
+            ' Jours (Lun=col7/8 ... Dim=col19/20 dans MANAGERS)
+            Dim j As Integer
+            For j = 1 To 7
+                Dim colESrc As Integer: colESrc = 5 + (j * 2)
+                Dim colSSrc As Integer: colSSrc = colESrc + 1
+                Dim entree As String: entree = CStr(wsSrc.Cells(i, colESrc).Value)
+                Dim sortie As String: sortie = CStr(wsSrc.Cells(i, colSSrc).Value)
+
+                Dim affVal As String
+                If entree = "OFF" Or entree = "" Then
+                    affVal = "OFF"
+                ElseIf entree = "CONGE" Then
+                    affVal = "CONGÉ"
+                Else
+                    affVal = entree & " - " & sortie
+                End If
+
+                Dim cel As Range
+                Set cel = wsAff.Cells(ligneAff, 3 + j)
+                cel.Value = affVal
+                cel.HorizontalAlignment = xlCenter
+                cel.WrapText = True
+
+                Select Case affVal
+                    Case "OFF"
+                        cel.Interior.Color = RGB(255, 199, 206)
+                        cel.Font.Color = RGB(192, 0, 0)
+                        cel.Font.Bold = True
+                    Case "CONGÉ"
+                        cel.Interior.Color = RGB(255, 230, 153)
+                        cel.Font.Color = RGB(156, 87, 0)
+                        cel.Font.Bold = True
+                    Case Else
+                        If ligneAff Mod 2 = 0 Then
+                            cel.Interior.Color = RGB(235, 241, 255)
+                        Else
+                            cel.Interior.Color = RGB(255, 255, 255)
+                        End If
+                        cel.Font.Color = RGB(0, 0, 0)
+                End Select
+            Next j
+
+            Dim bgC As Long
+            bgC = IIf(ligneAff Mod 2 = 0, RGB(235, 241, 255), RGB(255, 255, 255))
+            wsAff.Cells(ligneAff, 1).Interior.Color = bgC
+            wsAff.Cells(ligneAff, 2).Interior.Color = bgC
+            wsAff.Cells(ligneAff, 3).Interior.Color = bgC
+            wsAff.Rows(ligneAff).RowHeight = 35
+            ligneAff = ligneAff + 1
+        End If
+    Next i
+
+    If ligneAff = 3 Then
+        wsAff.Cells(3, 1).Value = "Aucun planning manager pour la semaine " & semCible
+    End If
+
+    ' Largeurs
+    wsAff.Columns(1).ColumnWidth = 28
+    wsAff.Columns(2).ColumnWidth = 16
+    wsAff.Columns(3).ColumnWidth = 14
+    For c = 4 To 10
+        wsAff.Columns(c).ColumnWidth = 20
+    Next c
+
+    wsAff.Activate
+    MsgBox "Planning Managers affiché (Semaine " & semCible & ").", vbInformation, "Planning Managers"
+End Sub
+
+' ============================================================
+' LANCEUR USERFORM MANAGERS
+' ============================================================
+Sub OuvrirUFManagers()
+    UFManagers.Show
+End Sub
+
+' ============================================================
+' FIN MODULE ModuleManagers
+' ============================================================
+
+
+
+
+' ============================================================
+' ============================================================
+' SECTION 2 : DESIGN DU USERFORM UFManagers
+' ============================================================
+' ============================================================
+'
+' Dans l'éditeur VBA (Alt+F11) :
+'   Insertion > UserForm  →  renommer en "UFManagers"
+'
+' Propriétés du UserForm :
+'   Caption     = "Planning Managers"
+'   Width       = 600
+'   Height      = 580
+'   StartUpPosition = 1 (CenterOwner)
+'
+' CONTROLES A CREER (Nom | Type | Caption/Text | Left | Top | W | H) :
+'
+' lblTitre     | Label      | "SAISIE PLANNING MANAGER"  | 10  | 8   | 570 | 22
+' lblNom       | Label      | "Nom :"                    | 10  | 40  | 80  | 18
+' txtNom       | TextBox    |                            | 100 | 38  | 150 | 20
+' lblPrenom    | Label      | "Prénom :"                 | 270 | 40  | 80  | 18
+' txtPrenom    | TextBox    |                            | 360 | 38  | 150 | 20
+' lblProjet    | Label      | "Projet :"                 | 10  | 68  | 80  | 18
+' cboProjet    | ComboBox   |                            | 100 | 66  | 150 | 20
+' lblVille     | Label      | "Ville :"                  | 270 | 68  | 80  | 18
+' txtVille     | TextBox    |                            | 360 | 66  | 150 | 20
+' lblSemaine   | Label      | "Semaine :"                | 10  | 96  | 80  | 18
+' txtSemaine   | TextBox    |                            | 100 | 94  | 60  | 20
+' lblDate      | Label      | ""                         | 175 | 96  | 200 | 18
+'
+' --- Grille horaires jours ---
+' (7 lignes, une par jour)
+' Ligne d'en-tête :
+' lblJour0     | Label      | "Jour"     | 10  | 128 | 80  | 18
+' lblEntree0   | Label      | "Entrée"   | 100 | 128 | 80  | 18
+' lblSortie0   | Label      | "Sortie"   | 190 | 128 | 80  | 18
+' lblStatut0   | Label      | "Statut"   | 280 | 128 | 100 | 18
+'
+' Pour chaque jour j (1=Lun..7=Dim), calculer Top = 128 + j*28 :
+'   lblJourN     | Label   | "Lundi" ... | 10  | top | 80  | 20
+'   txtEntreeN   | TextBox |             | 100 | top | 80  | 20
+'   txtSortieN   | TextBox |             | 190 | top | 80  | 20
+'   cboStatutN   | ComboBox|             | 280 | top | 100 | 20
+'
+' Nommage exact attendu par le code :
+'   txtEntree1..txtEntree7  (Lundi à Dimanche)
+'   txtSortie1..txtSortie7
+'   cboStatut1..cboStatut7  (valeurs : Normal / OFF / CONGE)
+'   lblJour1..lblJour7
+'
+' --- Boutons ---
+' txtCommentaire | TextBox  |            | 10  | 340 | 490 | 40
+' lblComment     | Label    | "Commentaire :" | 10 | 322 | 120 | 18
+' btnEnregistrer | CommandButton | "Enregistrer" | 10  | 400 | 130 | 30
+' btnAfficher    | CommandButton | "Voir Planning" | 155 | 400 | 130 | 30
+' btnEffacer     | CommandButton | "Effacer Ligne" | 300 | 400 | 130 | 30
+' btnFermer      | CommandButton | "Fermer"       | 445 | 400 | 100 | 30
+' lblInfo        | Label         | ""             | 10  | 440 | 560 | 40
+'
+' ============================================================
+
+
+
+
+' ============================================================
+' ============================================================
+' SECTION 3 : CODE VBA DU USERFORM UFManagers
+' ============================================================
+' ============================================================
+'
+' Coller ce code dans le module du UserForm UFManagers
+' (double-clic sur UFManagers dans l'éditeur VBA)
+' ============================================================
+
+' --- DEBUT CODE UFManagers ---
+
+Option Explicit
+
+Private Sub UserForm_Initialize()
+    ' Titre
+    Me.Caption = "Planning Managers — Saisie hebdomadaire"
+
+    ' Remplir ComboBox Projet avec les projets existants
+    cboProjet.Clear
+    Dim projets As Variant
+    projets = Array("AFEDIM", "ACCESSIBILITE", "CM Leasing", "GLF", "EBRA", _
+                    "GOOGLE LEADS", "TLV", "FACTO", "DAC", "AUTRE")
+    Dim p As Integer
+    For p = 0 To UBound(projets)
+        cboProjet.AddItem projets(p)
+    Next p
+
+    ' Remplir ComboBox Statut pour chaque jour
+    Dim j As Integer
+    For j = 1 To 7
+        Dim cbo As Control
+        Set cbo = Me.Controls("cboStatut" & j)
+        cbo.Clear
+        cbo.AddItem "Normal"
+        cbo.AddItem "OFF"
+        cbo.AddItem "CONGE"
+        cbo.Value = "Normal"
+    Next j
+
+    ' Libellés des jours
+    Dim jours As Variant
+    jours = Array("", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche")
+    For j = 1 To 7
+        Me.Controls("lblJour" & j).Caption = jours(j)
+    Next j
+
+    ' Numéro de semaine courant
+    Dim semCourante As Integer
+    semCourante = Application.WorksheetFunction.WeekNum(Date, 2)
+    txtSemaine.Value = semCourante
+    MettreAJourLabelDate
+
+    ' Info initiale
+    lblInfo.Caption = "Renseignez le manager, choisissez la semaine et saisissez les horaires."
+    lblInfo.ForeColor = RGB(31, 73, 125)
+End Sub
+
+' ============================================================
+' Mise à jour du label date quand la semaine change
+' ============================================================
+Private Sub txtSemaine_Change()
+    MettreAJourLabelDate
+End Sub
+
+Private Sub MettreAJourLabelDate()
+    On Error Resume Next
+    Dim sem As Integer
+    If Not IsNumeric(txtSemaine.Value) Then Exit Sub
+    sem = CInt(txtSemaine.Value)
+    ' Calculer le lundi de la semaine ISO
+    Dim annee As Integer: annee = Year(Date)
+    Dim lundi As Date
+    lundi = DateSerial(annee, 1, 1)
+    ' Ajuster au premier lundi ISO
+    Dim wd As Integer: wd = Weekday(lundi, vbMonday)
+    lundi = lundi - (wd - 1)
+    ' Avancer de (sem-1) semaines
+    ' Recalcul robuste : partir du 4 janvier (toujours semaine 1 ISO)
+    Dim jan4 As Date: jan4 = DateSerial(annee, 1, 4)
+    Dim wdJan4 As Integer: wdJan4 = Weekday(jan4, vbMonday)
+    lundi = jan4 - (wdJan4 - 1) + (sem - 1) * 7
+    lblDate.Caption = "Du " & Format(lundi, "dd/mm/yyyy") & _
+                      " au " & Format(lundi + 6, "dd/mm/yyyy")
+    On Error GoTo 0
+End Sub
+
+' ============================================================
+' Gestion du changement de statut (OFF/CONGE désactive les heures)
+' ============================================================
+Private Sub cboStatut1_Change(): GererStatutJour 1: End Sub
+Private Sub cboStatut2_Change(): GererStatutJour 2: End Sub
+Private Sub cboStatut3_Change(): GererStatutJour 3: End Sub
+Private Sub cboStatut4_Change(): GererStatutJour 4: End Sub
+Private Sub cboStatut5_Change(): GererStatutJour 5: End Sub
+Private Sub cboStatut6_Change(): GererStatutJour 6: End Sub
+Private Sub cboStatut7_Change(): GererStatutJour 7: End Sub
+
+Private Sub GererStatutJour(j As Integer)
+    Dim statut As String
+    statut = Me.Controls("cboStatut" & j).Value
+    Dim txtE As Control: Set txtE = Me.Controls("txtEntree" & j)
+    Dim txtS As Control: Set txtS = Me.Controls("txtSortie" & j)
+
+    Select Case statut
+        Case "OFF"
+            txtE.Value = "OFF"
+            txtS.Value = "OFF"
+            txtE.Enabled = False
+            txtS.Enabled = False
+            txtE.BackColor = RGB(255, 199, 206)
+            txtS.BackColor = RGB(255, 199, 206)
+        Case "CONGE"
+            txtE.Value = "CONGE"
+            txtS.Value = "CONGE"
+            txtE.Enabled = False
+            txtS.Enabled = False
+            txtE.BackColor = RGB(255, 230, 153)
+            txtS.BackColor = RGB(255, 230, 153)
+        Case Else
+            If txtE.Value = "OFF" Or txtE.Value = "CONGE" Then txtE.Value = ""
+            If txtS.Value = "OFF" Or txtS.Value = "CONGE" Then txtS.Value = ""
+            txtE.Enabled = True
+            txtS.Enabled = True
+            txtE.BackColor = RGB(255, 255, 255)
+            txtS.BackColor = RGB(255, 255, 255)
+    End Select
+End Sub
+
+' ============================================================
+' BOUTON ENREGISTRER
+' ============================================================
+Private Sub btnEnregistrer_Click()
+    ' --- Validation ---
+    If Trim(txtNom.Value) = "" Then
+        MsgBox "Veuillez saisir le nom du manager.", vbExclamation
+        txtNom.SetFocus
+        Exit Sub
+    End If
+    If Trim(txtPrenom.Value) = "" Then
+        MsgBox "Veuillez saisir le prénom du manager.", vbExclamation
+        txtPrenom.SetFocus
+        Exit Sub
+    End If
+    If Not IsNumeric(txtSemaine.Value) Then
+        MsgBox "Numéro de semaine invalide.", vbExclamation
+        txtSemaine.SetFocus
+        Exit Sub
+    End If
+
+    ' --- Validation des horaires ---
+    Dim j As Integer
+    For j = 1 To 7
+        Dim statut As String: statut = Me.Controls("cboStatut" & j).Value
+        If statut = "Normal" Then
+            Dim entreeVal As String: entreeVal = Trim(Me.Controls("txtEntree" & j).Value)
+            Dim sortieVal As String: sortieVal = Trim(Me.Controls("txtSortie" & j).Value)
+            If entreeVal <> "" And Not ValiderHeure(entreeVal) Then
+                MsgBox "Format heure invalide (" & Me.Controls("lblJour" & j).Caption & _
+                       " Entrée). Utilisez HH:MM (ex: 08:30).", vbExclamation
+                Me.Controls("txtEntree" & j).SetFocus
+                Exit Sub
+            End If
+            If sortieVal <> "" And Not ValiderHeure(sortieVal) Then
+                MsgBox "Format heure invalide (" & Me.Controls("lblJour" & j).Caption & _
+                       " Sortie). Utilisez HH:MM (ex: 17:30).", vbExclamation
+                Me.Controls("txtSortie" & j).SetFocus
+                Exit Sub
+            End If
+        End If
+    Next j
+
+    ' --- Construire tableau horaires ---
+    Dim horaires(1 To 7, 1 To 2) As String
+    For j = 1 To 7
+        Dim st As String: st = Me.Controls("cboStatut" & j).Value
+        Dim ent As String: ent = Trim(Me.Controls("txtEntree" & j).Value)
+        Dim sor As String: sor = Trim(Me.Controls("txtSortie" & j).Value)
+
+        Select Case st
+            Case "OFF"
+                horaires(j, 1) = "OFF"
+                horaires(j, 2) = "OFF"
+            Case "CONGE"
+                horaires(j, 1) = "CONGE"
+                horaires(j, 2) = "CONGE"
+            Case Else
+                horaires(j, 1) = IIf(ent = "", "OFF", ent)
+                horaires(j, 2) = IIf(sor = "", "OFF", sor)
+        End Select
+    Next j
+
+    ' --- Appel enregistrement ---
+    Call EnregistrerPlanningManager( _
+        txtNom.Value, txtPrenom.Value, _
+        cboProjet.Value, txtVille.Value, _
+        CInt(txtSemaine.Value), _
+        horaires, _
+        Trim(txtCommentaire.Value))
+
+    lblInfo.Caption = "✔ Planning enregistré pour " & Trim(txtPrenom.Value) & _
+                      " " & UCase(Trim(txtNom.Value)) & _
+                      " — Semaine " & txtSemaine.Value
+    lblInfo.ForeColor = RGB(0, 97, 0)
+End Sub
+
+' ============================================================
+' BOUTON AFFICHER PLANNING
+' ============================================================
+Private Sub btnAfficher_Click()
+    ' Synchroniser g_LundiCible si semaine renseignée
+    If IsNumeric(txtSemaine.Value) Then
+        Dim sem As Integer: sem = CInt(txtSemaine.Value)
+        Dim annee As Integer: annee = Year(Date)
+        Dim jan4 As Date: jan4 = DateSerial(annee, 1, 4)
+        Dim wdJ As Integer: wdJ = Weekday(jan4, vbMonday)
+        g_LundiCible = jan4 - (wdJ - 1) + (sem - 1) * 7
+    End If
+    Call GenererAffichageManagers
+End Sub
+
+' ============================================================
+' BOUTON EFFACER LIGNE (supprime la ligne du manager/semaine)
+' ============================================================
+Private Sub btnEffacer_Click()
+    If Trim(txtNom.Value) = "" Or Trim(txtPrenom.Value) = "" Then
+        MsgBox "Renseignez Nom et Prénom pour identifier le manager à supprimer.", vbExclamation
+        Exit Sub
+    End If
+    If Not IsNumeric(txtSemaine.Value) Then
+        MsgBox "Numéro de semaine invalide.", vbExclamation
+        Exit Sub
+    End If
+    Dim nomComplet As String
+    nomComplet = Trim(txtPrenom.Value) & " " & Trim(txtNom.Value)
+    If MsgBox("Supprimer le planning de " & nomComplet & " (Semaine " & txtSemaine.Value & ") ?", _
+              vbYesNo + vbWarning) = vbNo Then Exit Sub
+    Call SupprimerPlanningManager(nomComplet, CInt(txtSemaine.Value))
+    lblInfo.Caption = "✖ Planning supprimé pour " & nomComplet & " — Semaine " & txtSemaine.Value
+    lblInfo.ForeColor = RGB(192, 0, 0)
+End Sub
+
+' ============================================================
+' BOUTON FERMER
+' ============================================================
+Private Sub btnFermer_Click()
+    Unload Me
+End Sub
+
+' ============================================================
+' VALIDATION FORMAT HEURE HH:MM
+' ============================================================
+Private Function ValiderHeure(h As String) As Boolean
+    h = Trim(h)
+    If Len(h) < 4 Or Len(h) > 5 Then ValiderHeure = False: Exit Function
+    If InStr(h, ":") = 0 Then ValiderHeure = False: Exit Function
+    Dim parts() As String: parts = Split(h, ":")
+    If UBound(parts) <> 1 Then ValiderHeure = False: Exit Function
+    If Not IsNumeric(parts(0)) Or Not IsNumeric(parts(1)) Then ValiderHeure = False: Exit Function
+    Dim hh As Integer: hh = CInt(parts(0))
+    Dim mm As Integer: mm = CInt(parts(1))
+    ValiderHeure = (hh >= 0 And hh <= 23 And mm >= 0 And mm <= 59)
+End Function
+
+' --- FIN CODE UFManagers ---
+
+
+
+
+' ============================================================
+' ============================================================
+' SECTION 4 : MODIFICATIONS DU MODULE PRINCIPAL
+' ============================================================
+' ============================================================
+'
+' Dans votre module principal (Module1 / ModulePrincipal),
+' ajoutez ce lanceur à la section LANCEURS USERFORMS :
+' ============================================================
+
+'Sub OuvrirUFManagers()
+'    UFManagers.Show
+'End Sub
+
+' ============================================================
+' ============================================================
+' SECTION 5 : MODIFIER UFMain POUR AJOUTER LE BOUTON MANAGERS
+' ============================================================
+' ============================================================
+'
+' Dans le UserForm UFMain (double-clic > code), dans
+' UserForm_Initialize ou la procédure de clic d'un bouton existant,
+' ajoutez un bouton "Planning Managers" qui appelle :
+'
+'     Private Sub btnManagers_Click()
+'         Call OuvrirUFManagers
+'     End Sub
+'
+' Sur le design du UserForm UFMain, ajoutez :
+'   - CommandButton : Name = btnManagers
+'                     Caption = "👔 Planning Managers"
+'                     (même style que les autres boutons existants)
+' ============================================================
+
+
+' ============================================================
+' ============================================================
+' SECTION 6 : VERIFICATION DES FEUILLES — mise à jour optionnelle
+' ============================================================
+' ============================================================
+'
+' Si vous souhaitez que VerifierFeuillesExistantes() vérifie aussi
+' la feuille MANAGERS, remplacez la ligne req = Split(...) par :
+'
+' req = Split("Utilisateurs,AFEDIM,ACCESSIBILITE,CM Leasing,GLF,EBRA," & _
+'             "GOOGLE LEADS,TLV,FACTO,DAC,CONSOLIDATION,PLANNING,BESOINS,MANAGERS", ",")
+'
+' NB : La feuille MANAGERS étant créée automatiquement à la première
+'      saisie, cette vérification est optionnelle.
+' ============================================================

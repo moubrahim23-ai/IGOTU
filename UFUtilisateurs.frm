@@ -281,46 +281,45 @@ Private Sub cmdSupprimer_Click()
     MsgBox nomSel & " supprime.", vbInformation
 End Sub
 
-' --- Sauvegarder (fiche collaborateur) ---
-Private Sub cmdSauver_Click()
+' Ecrit la fiche collaborateur (colonnes 1-22) a la ligne "lr" de la
+' feuille Utilisateurs, apres validation des champs. Renvoie False (et
+' affiche un message) si une validation echoue, sans rien ecrire.
+' Utilisee a la fois par cmdSauver_Click et cmdMettreAJour_Click (pour
+' que "Mettre a jour" prenne aussi en compte les modifications des
+' Informations collaborateurs, pas seulement le planning).
+Private Function EnregistrerFicheUtilisateur(lr As Long) As Boolean
+    EnregistrerFicheUtilisateur = False
+
     ' Validations
     If Trim(txtNom.Text) = "" Then
-        MsgBox "Le nom est obligatoire.", vbExclamation: txtNom.SetFocus: Exit Sub
+        MsgBox "Le nom est obligatoire.", vbExclamation: txtNom.SetFocus: Exit Function
     End If
     If Trim(cboProjet.Text) = "" Then
-        MsgBox "Le projet est obligatoire.", vbExclamation: cboProjet.SetFocus: Exit Sub
+        MsgBox "Le projet est obligatoire.", vbExclamation: cboProjet.SetFocus: Exit Function
     End If
     If optCongeOui.Value Then
         If Not IsDate(txtCongeD.Text) Or Not IsDate(txtCongeF.Text) Then
-            MsgBox "Dates de conge invalides (format jj/mm/aaaa).", vbExclamation: Exit Sub
+            MsgBox "Dates de conge invalides (format jj/mm/aaaa).", vbExclamation: Exit Function
         End If
     End If
     If optTTOui.Value Then
         If Not IsDate(txtTTD.Text) Or Not IsDate(txtTTF.Text) Then
-            MsgBox "Dates TT invalides (format jj/mm/aaaa).", vbExclamation: Exit Sub
+            MsgBox "Dates TT invalides (format jj/mm/aaaa).", vbExclamation: Exit Function
         End If
     End If
     If optMaladieOui.Value Then
         If Not IsDate(txtDateArret.Text) Or Not IsDate(txtDateReprise.Text) Then
-            MsgBox "Dates de maladie invalides (format jj/mm/aaaa).", vbExclamation: Exit Sub
+            MsgBox "Dates de maladie invalides (format jj/mm/aaaa).", vbExclamation: Exit Function
         End If
     End If
     If optCDD.Value And Trim(txtDateExpiration.Text) <> "" Then
         If Not IsDate(txtDateExpiration.Text) Then
-            MsgBox "Date d'expiration invalide (format jj/mm/aaaa).", vbExclamation: Exit Sub
+            MsgBox "Date d'expiration invalide (format jj/mm/aaaa).", vbExclamation: Exit Function
         End If
     End If
 
     Dim ws As Worksheet
     Set ws = ThisWorkbook.Sheets("Utilisateurs")
-    Dim lr As Long
-
-    If m_modeAjout Then
-        ' Nouvelle ligne apres la derniere
-        lr = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row + 1
-    Else
-        lr = m_ligneSelectionnee
-    End If
 
     ws.Cells(lr, 1).Value = Trim(txtNom.Text)
     ws.Cells(lr, 2).Value = Trim(cboProjet.Text)
@@ -383,6 +382,9 @@ Private Sub cmdSauver_Click()
     End If
 
     ' Maladie (col 20-22)
+    ' Regle : Maladie = OUI equivaut a un statut "OFF" pour la
+    ' periode d'arret (voir aussi cmdMettreAJour_Click, qui force les
+    ' jours du planning concernes a "OFF").
     ws.Cells(lr, 20).Value = IIf(optMaladieOui.Value, "OUI", "NON")
     If optMaladieOui.Value And IsDate(txtDateArret.Text) Then
         ws.Cells(lr, 21).Value = CDate(txtDateArret.Text)
@@ -396,6 +398,24 @@ Private Sub cmdSauver_Click()
     Else
         ws.Cells(lr, 22).Value = ""
     End If
+
+    EnregistrerFicheUtilisateur = True
+End Function
+
+' --- Sauvegarder (fiche collaborateur) ---
+Private Sub cmdSauver_Click()
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("Utilisateurs")
+    Dim lr As Long
+
+    If m_modeAjout Then
+        ' Nouvelle ligne apres la derniere
+        lr = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row + 1
+    Else
+        lr = m_ligneSelectionnee
+    End If
+
+    If Not EnregistrerFicheUtilisateur(lr) Then Exit Sub
 
     ChargerListe
     VerrouillerFormulaire True
@@ -724,6 +744,19 @@ Private Sub MajLigneRotation(nomComplet As String, projet As String, semCible As
     End If
 End Sub
 
+' Indique si le jour donne tombe dans la periode d'arret maladie
+' actuellement affichee sur le formulaire (Maladie = OUI + dates
+' d'arret/reprise valides). Utilisee par cmdMettreAJour_Click pour
+' forcer ces jours a "OFF" dans le planning (regle : Maladie OUI = OFF).
+Private Function EstJourMaladie(dJourCheck As Date) As Boolean
+    EstJourMaladie = False
+    If Not optMaladieOui.Value Then Exit Function
+    If Not IsDate(txtDateArret.Text) Or Not IsDate(txtDateReprise.Text) Then Exit Function
+    Dim dA As Date: dA = CDate(txtDateArret.Text)
+    Dim dR As Date: dR = CDate(txtDateReprise.Text)
+    EstJourMaladie = (dJourCheck >= dA And dJourCheck <= dR)
+End Function
+
 ' --- Bouton "Mettre a jour" ---
 Private Sub cmdMettreAJour_Click()
     If lstCollabs.ListIndex < 0 Then
@@ -734,6 +767,15 @@ Private Sub cmdMettreAJour_Click()
                "Lancez d'abord 'Generer Planning' depuis UFGenerer.", vbCritical
         Exit Sub
     End If
+
+    ' Enregistre d'abord les eventuelles modifications des Informations
+    ' collaborateur (Ville, Zone, Conge, TT, Renfort, Contrat, Maladie...)
+    ' afin que "Mettre a jour" reflete aussi ces changements, pas
+    ' seulement la grille Planning Semaine.
+    If Not EnregistrerFicheUtilisateur(m_ligneSelectionnee) Then Exit Sub
+    Dim idxListeAvant As Long: idxListeAvant = m_ligneSelectionnee - 2
+    ChargerListe
+    If idxListeAvant >= 0 And idxListeAvant < lstCollabs.ListCount Then lstCollabs.ListIndex = idxListeAvant
 
     Dim nomComplet As String: nomComplet = Trim(txtNom.Text)
     Dim nomProjet As String: nomProjet = Trim(cboProjet.Text)
@@ -763,17 +805,21 @@ Private Sub cmdMettreAJour_Click()
     End If
 
     ' Validation de toutes les heures saisies avant toute ecriture
+    ' (les jours couverts par un arret maladie sont ignores : ils
+    ' seront de toute facon forces a "OFF" plus bas)
     Dim j As Integer
     For j = 1 To 7
-        Dim eTest As String: eTest = UCase(Trim(Me.Controls("txtEntree" & j).Text))
-        Dim sTest As String: sTest = UCase(Trim(Me.Controls("txtSortie" & j).Text))
-        If eTest <> "" And eTest <> "OFF" And eTest <> "CONGE" And Not EstHeureValide(eTest) Then
-            MsgBox "Heure d'entree invalide (" & NomJour(j) & ") : " & eTest, vbExclamation
-            Exit Sub
-        End If
-        If sTest <> "" And sTest <> "OFF" And sTest <> "CONGE" And Not EstHeureValide(sTest) Then
-            MsgBox "Heure de sortie invalide (" & NomJour(j) & ") : " & sTest, vbExclamation
-            Exit Sub
+        If Not EstJourMaladie(lundiCible + (j - 1)) Then
+            Dim eTest As String: eTest = UCase(Trim(Me.Controls("txtEntree" & j).Text))
+            Dim sTest As String: sTest = UCase(Trim(Me.Controls("txtSortie" & j).Text))
+            If eTest <> "" And eTest <> "OFF" And eTest <> "CONGE" And Not EstHeureValide(eTest) Then
+                MsgBox "Heure d'entree invalide (" & NomJour(j) & ") : " & eTest, vbExclamation
+                Exit Sub
+            End If
+            If sTest <> "" And sTest <> "OFF" And sTest <> "CONGE" And Not EstHeureValide(sTest) Then
+                MsgBox "Heure de sortie invalide (" & NomJour(j) & ") : " & sTest, vbExclamation
+                Exit Sub
+            End If
         End If
     Next j
 
@@ -789,6 +835,13 @@ Private Sub cmdMettreAJour_Click()
         Dim dJour As Date: dJour = lundiCible + (j - 1)
         Dim colE As Integer: colE = 10 + (j * 2)
         Dim colS As Integer: colS = colE + 1
+
+        ' Regle : Maladie = OUI equivaut a "OFF" pour les jours de la
+        ' periode d'arret, quelle que soit la saisie du planning.
+        If EstJourMaladie(dJour) Then
+            entree = "OFF"
+            sortie = "OFF"
+        End If
 
         ' --- PLANNING ---
         wsP.Cells(lrP, colE).Value = entree

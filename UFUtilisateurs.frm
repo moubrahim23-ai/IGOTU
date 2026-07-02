@@ -45,11 +45,35 @@ Attribute VB_Exposed = False
 '    conservee telle quelle lors de l'enregistrement d'une fiche
 '    existante.
 '
+' NOUVEAUTES V4 :
+'  - REGLE "Maladie = OFF" : un collaborateur en arret maladie
+'    apparait desormais en OFF (PLANNING/CONSOLIDATION/feuille projet)
+'    sur toute sa periode Date d'arret -> Date de reprise, aussi bien
+'    lors de la generation initiale (BOOM.AppliquerCongesEtTT et
+'    GenererPlanningGOOGLELEADS) que via le bouton "Mettre a jour"
+'    de ce formulaire. Cette regle est aussi appliquee a l'eligibilite
+'    RENFORT (un collaborateur malade n'est plus propose en renfort).
+'  - NOUVEAU champ "txtRecherche" : recherche live (par nom) dans
+'    lstCollabs au fil de la frappe.
+'  - NOUVEAU champ "txtSemaine" : permet de choisir la semaine cible
+'    du bloc "Planning Semaine" / bouton "Mettre a jour" (par defaut :
+'    la semaine active de UFGenerer). Saisir n'importe quelle date de
+'    la semaine voulue (format jj/mm/aaaa) ; le lundi correspondant
+'    est calcule automatiquement.
+'
 ' ------------------------------------------------------------
 ' CONTROLES A CREER / RENOMMER DANS L'EDITEUR DE FORMULAIRE
 ' (le fichier .frx n'etant pas modifiable depuis ce chat, ces
 '  controles doivent etre ajoutes/renommes manuellement dans
 '  l'editeur VBA, en suivant le visuel de la maquette) :
+'
+'   Cadre "Collaborateurs" (au-dessus de lstCollabs) :
+'     txtRecherche  (TextBox) - recherche/filtre live sur lstCollabs
+'
+'   Cadre "Planning Semaine" (a cote du titre, ou dans le cadre) :
+'     txtSemaine  (TextBox) - date (jj/mm/aaaa) de la semaine a
+'     modifier ; initialisee automatiquement a la semaine active de
+'     UFGenerer dans UserForm_Initialize
 '
 '   Cadre "Conge" :
 '     optCongeOui / optCongeNon  (OptionButton, GroupName="GrpConge")
@@ -101,6 +125,7 @@ Option Explicit
 
 Private m_ligneSelectionnee As Long
 Private m_modeAjout As Boolean
+Private m_lignesListe() As Long   ' mappe l'index de lstCollabs -> ligne reelle de la feuille
 
 ' Valeurs "passives" (colonnes 15/16/18) non saisies sur ce formulaire :
 ' conservees telles quelles lors de la sauvegarde d'une fiche existante.
@@ -139,33 +164,90 @@ Private Sub UserForm_Initialize()
     m_matricule = ""
     m_telephone = ""
     m_dateEmbauche = ""
+    txtRecherche.Text = ""
+    txtSemaine.Text = Format(BOOM.LundiSemaine(), "dd/mm/yyyy")
     ChargerListe
     VerrouillerFormulaire True
     ViderPlanningSemaine
     cmdMettreAJour.Enabled = False
 End Sub
 
-' --- Charger la liste des collaborateurs ---
-Private Sub ChargerListe()
+' --- Recherche live dans la liste des collaborateurs ---
+Private Sub txtRecherche_Change()
+    ChargerListe txtRecherche.Text
+End Sub
+
+' Recalcule le lundi de la semaine a utiliser pour le bloc "Planning
+' Semaine" : si txtSemaine contient une date valide, on prend le lundi
+' de la semaine correspondante ; sinon on retombe sur la semaine
+' active de UFGenerer (BOOM.g_LundiCible / LundiSemaine()).
+Private Function LundiSemaineCible() As Date
+    If Trim(txtSemaine.Text) <> "" And IsDate(txtSemaine.Text) Then
+        Dim d As Date: d = CDate(txtSemaine.Text)
+        LundiSemaineCible = d - (Weekday(d, vbMonday) - 1)
+    Else
+        LundiSemaineCible = BOOM.LundiSemaine()
+    End If
+End Function
+
+' Quand l'utilisateur change la semaine ciblee, on recharge le
+' planning du collaborateur actuellement selectionne pour cette
+' nouvelle semaine.
+Private Sub txtSemaine_AfterUpdate()
+    If Trim(txtSemaine.Text) <> "" And Not IsDate(txtSemaine.Text) Then
+        MsgBox "Date de semaine invalide (format jj/mm/aaaa).", vbExclamation
+        Exit Sub
+    End If
+    If m_ligneSelectionnee > 0 Then
+        ChargerPlanningSemaine txtNom.Text
+    End If
+End Sub
+
+' --- Charger la liste des collaborateurs (filtree par nom si "filtre" fourni) ---
+Private Sub ChargerListe(Optional ByVal filtre As String = "")
     lstCollabs.Clear
     Dim ws As Worksheet
     Set ws = ThisWorkbook.Sheets("Utilisateurs")
     Dim lastRow As Long
     lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+
+    ReDim m_lignesListe(0 To 0)
+    Dim n As Long: n = 0
+    Dim filtreU As String: filtreU = UCase(Trim(filtre))
+
     Dim i As Long
     For i = 2 To lastRow
-        If Trim(ws.Cells(i, 1).Value) <> "" Then
-            lstCollabs.AddItem ws.Cells(i, 1).Value & "  [" & ws.Cells(i, 2).Value & "]"
-            lstCollabs.List(lstCollabs.ListCount - 1, 0) = ws.Cells(i, 1).Value & "  [" & ws.Cells(i, 2).Value & "]"
+        Dim nomLigne As String: nomLigne = Trim(ws.Cells(i, 1).Value)
+        If nomLigne <> "" Then
+            If filtreU = "" Or InStr(1, UCase(nomLigne), filtreU) > 0 Then
+                lstCollabs.AddItem nomLigne & "  [" & ws.Cells(i, 2).Value & "]"
+                ReDim Preserve m_lignesListe(0 To n)
+                m_lignesListe(n) = i
+                n = n + 1
+            End If
         End If
     Next i
+End Sub
+
+' Selectionne dans lstCollabs l'item correspondant a la ligne de
+' feuille donnee (utile apres ChargerListe, car les index de la
+' liste filtree ne correspondent plus directement aux lignes de la
+' feuille Utilisateurs).
+Private Sub SelectionnerLigneDansListe(ligne As Long)
+    Dim idx As Long
+    For idx = LBound(m_lignesListe) To UBound(m_lignesListe)
+        If m_lignesListe(idx) = ligne Then
+            lstCollabs.ListIndex = idx
+            Exit Sub
+        End If
+    Next idx
 End Sub
 
 ' --- Selection dans la liste ---
 Private Sub lstCollabs_Click()
     If lstCollabs.ListIndex < 0 Then Exit Sub
     m_modeAjout = False
-    m_ligneSelectionnee = lstCollabs.ListIndex + 2  ' +2 car ligne 1 = entete
+    m_ligneSelectionnee = m_lignesListe(lstCollabs.ListIndex)
 
     Dim ws As Worksheet
     Set ws = ThisWorkbook.Sheets("Utilisateurs")
@@ -277,7 +359,7 @@ Private Sub cmdSupprimer_Click()
     ViderPlanningSemaine
     cmdMettreAJour.Enabled = False
     m_ligneSelectionnee = 0
-    ChargerListe
+    ChargerListe txtRecherche.Text
     MsgBox nomSel & " supprime.", vbInformation
 End Sub
 
@@ -417,7 +499,8 @@ Private Sub cmdSauver_Click()
 
     If Not EnregistrerFicheUtilisateur(lr) Then Exit Sub
 
-    ChargerListe
+    ChargerListe txtRecherche.Text
+    SelectionnerLigneDansListe lr
     VerrouillerFormulaire True
 
     Dim etaitAjout As Boolean: etaitAjout = m_modeAjout
@@ -585,7 +668,7 @@ Private Sub ChargerPlanningSemaine(nomComplet As String)
     Set wsP = ThisWorkbook.Sheets("PLANNING")
     Set wsC = ThisWorkbook.Sheets("CONSOLIDATION")
 
-    Dim lundiCible As Date: lundiCible = BOOM.LundiSemaine()
+    Dim lundiCible As Date: lundiCible = LundiSemaineCible()
     Dim semCible As Integer
     semCible = Application.WorksheetFunction.WeekNum(lundiCible, 2)
 
@@ -772,10 +855,13 @@ Private Sub cmdMettreAJour_Click()
     ' collaborateur (Ville, Zone, Conge, TT, Renfort, Contrat, Maladie...)
     ' afin que "Mettre a jour" reflete aussi ces changements, pas
     ' seulement la grille Planning Semaine.
+    If Trim(txtSemaine.Text) <> "" And Not IsDate(txtSemaine.Text) Then
+        MsgBox "Date de semaine invalide (format jj/mm/aaaa).", vbExclamation: Exit Sub
+    End If
+    Dim ligneAvant As Long: ligneAvant = m_ligneSelectionnee
     If Not EnregistrerFicheUtilisateur(m_ligneSelectionnee) Then Exit Sub
-    Dim idxListeAvant As Long: idxListeAvant = m_ligneSelectionnee - 2
-    ChargerListe
-    If idxListeAvant >= 0 And idxListeAvant < lstCollabs.ListCount Then lstCollabs.ListIndex = idxListeAvant
+    ChargerListe txtRecherche.Text
+    SelectionnerLigneDansListe ligneAvant
 
     Dim nomComplet As String: nomComplet = Trim(txtNom.Text)
     Dim nomProjet As String: nomProjet = Trim(cboProjet.Text)
@@ -785,7 +871,9 @@ Private Sub cmdMettreAJour_Click()
     Set wsC = ThisWorkbook.Sheets("CONSOLIDATION")
     If BOOM.FeuilleExiste(nomProjet) Then Set wsProjet = ThisWorkbook.Sheets(nomProjet)
 
-    Dim lundiCible As Date: lundiCible = BOOM.LundiSemaine()
+    ' Semaine ciblee par la modification : txtSemaine si renseignee,
+    ' sinon la semaine active de UFGenerer.
+    Dim lundiCible As Date: lundiCible = LundiSemaineCible()
     Dim semCible As Integer
     semCible = Application.WorksheetFunction.WeekNum(lundiCible, 2)
 

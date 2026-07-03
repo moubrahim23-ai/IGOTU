@@ -1,18 +1,4 @@
-VERSION 5.00
-Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} UFUtilisateurs 
-   Caption         =   "UserForm1"
-   ClientHeight    =   8868.001
-   ClientLeft      =   -10956
-   ClientTop       =   504
-   ClientWidth     =   23424
-   OleObjectBlob   =   "UFUtilisateurs.frx":0000
-   StartUpPosition =   1  'CenterOwner
-End
-Attribute VB_Name = "UFUtilisateurs"
-Attribute VB_GlobalNameSpace = False
-Attribute VB_Creatable = False
-Attribute VB_PredeclaredId = True
-Attribute VB_Exposed = False
+
 ' ============================================================
 ' UFUtilisateurs - CODE COMPLET (V3)
 ' ============================================================
@@ -153,10 +139,9 @@ Private Sub UserForm_Initialize()
 
     ' Type de conge
     cboTypeConge.Clear
-    cboTypeConge.AddItem "Conge Paye"
-    cboTypeConge.AddItem "RTT"
+    cboTypeConge.AddItem "Cong? Pay?"
     cboTypeConge.AddItem "Sans Solde"
-    cboTypeConge.AddItem "Conge Exceptionnel"
+    cboTypeConge.AddItem "Cong? Sp?cial"
     cboTypeConge.AddItem "Autre"
 
     m_ligneSelectionnee = 0
@@ -300,12 +285,12 @@ Private Sub lstCollabs_Click()
     m_dateEmbauche = ws.Cells(m_ligneSelectionnee, 18).Value
 
     ' Contrat (col 17 + 19)
-    Dim typeContrat As String
-    typeContrat = UCase(Trim(ws.Cells(m_ligneSelectionnee, 17).Value))
-    If typeContrat = "CDD" Then
-        optCDD.Value = True
+    Dim TypeContrat As String
+    TypeContrat = UCase(Trim(ws.Cells(m_ligneSelectionnee, 17).Value))
+    If TypeContrat = "CDD" Then
+        optCdd.Value = True
     Else
-        optCDI.Value = True
+        optCdi.Value = True
     End If
     txtDateExpiration.Text = IIf(IsDate(ws.Cells(m_ligneSelectionnee, 19).Value), _
                            Format(ws.Cells(m_ligneSelectionnee, 19).Value, "dd/mm/yyyy"), "")
@@ -394,7 +379,7 @@ Private Function EnregistrerFicheUtilisateur(lr As Long) As Boolean
             MsgBox "Dates de maladie invalides (format jj/mm/aaaa).", vbExclamation: Exit Function
         End If
     End If
-    If optCDD.Value And Trim(txtDateExpiration.Text) <> "" Then
+    If optCdd.Value And Trim(txtDateExpiration.Text) <> "" Then
         If Not IsDate(txtDateExpiration.Text) Then
             MsgBox "Date d'expiration invalide (format jj/mm/aaaa).", vbExclamation: Exit Function
         End If
@@ -455,8 +440,8 @@ Private Function EnregistrerFicheUtilisateur(lr As Long) As Boolean
     If IsDate(m_dateEmbauche) Then ws.Cells(lr, 18).NumberFormat = "dd/mm/yyyy"
 
     ' Contrat (col 17 + 19)
-    ws.Cells(lr, 17).Value = IIf(optCDD.Value, "CDD", "CDI")
-    If optCDD.Value And IsDate(txtDateExpiration.Text) Then
+    ws.Cells(lr, 17).Value = IIf(optCdd.Value, "CDD", "CDI")
+    If optCdd.Value And IsDate(txtDateExpiration.Text) Then
         ws.Cells(lr, 19).Value = CDate(txtDateExpiration.Text)
         ws.Cells(lr, 19).NumberFormat = "dd/mm/yyyy"
     Else
@@ -533,7 +518,7 @@ Private Sub ViderFormulaire()
     cboTransport.Text = "NON"
     optTTNon.Value = True: txtTTD.Text = "": txtTTF.Text = ""
     optRenfortAucun.Value = True
-    optCDI.Value = True: txtDateExpiration.Text = ""
+    optCdi.Value = True: txtDateExpiration.Text = ""
     optMaladieNon.Value = True: txtDateArret.Text = "": txtDateReprise.Text = ""
     m_matricule = "": m_telephone = "": m_dateEmbauche = ""
 End Sub
@@ -556,8 +541,8 @@ Private Sub VerrouillerFormulaire(bVerrouille As Boolean)
     optRenfortAucun.Enabled = Not bVerrouille
     optRenfortPress.Enabled = Not bVerrouille
     optRenfortCofit.Enabled = Not bVerrouille
-    optCDI.Enabled = Not bVerrouille
-    optCDD.Enabled = Not bVerrouille
+    optCdi.Enabled = Not bVerrouille
+    optCdd.Enabled = Not bVerrouille
     txtDateExpiration.Enabled = Not bVerrouille
     optMaladieOui.Enabled = Not bVerrouille
     optMaladieNon.Enabled = Not bVerrouille
@@ -578,7 +563,7 @@ Private Sub AppliquerEtatsConditionnels()
     txtTTF.Enabled = optTTOui.Value
     txtDateArret.Enabled = optMaladieOui.Value
     txtDateReprise.Enabled = optMaladieOui.Value
-    txtDateExpiration.Enabled = optCDD.Value
+    txtDateExpiration.Enabled = optCdd.Value
 End Sub
 
 ' --- Active/desactive les champs dependants selon les OptionButton ---
@@ -661,11 +646,11 @@ End Sub
 Private Sub ChargerPlanningSemaine(nomComplet As String)
     ViderPlanningSemaine
     If Trim(nomComplet) = "" Then Exit Sub
-    If Not BOOM.FeuilleExiste("PLANNING") Then Exit Sub
+    If Not BOOM.FeuilleExiste("PLAT") Then Exit Sub
     If Not BOOM.FeuilleExiste("CONSOLIDATION") Then Exit Sub
 
     Dim wsP As Worksheet, wsC As Worksheet
-    Set wsP = ThisWorkbook.Sheets("PLANNING")
+    Set wsP = ThisWorkbook.Sheets("PLAT")
     Set wsC = ThisWorkbook.Sheets("CONSOLIDATION")
 
     Dim lundiCible As Date: lundiCible = LundiSemaineCible()
@@ -845,7 +830,7 @@ Private Sub cmdMettreAJour_Click()
     If lstCollabs.ListIndex < 0 Then
         MsgBox "Selectionnez d'abord un collaborateur.", vbExclamation: Exit Sub
     End If
-    If Not BOOM.FeuilleExiste("PLANNING") Or Not BOOM.FeuilleExiste("CONSOLIDATION") Then
+    If Not BOOM.FeuilleExiste("PLAT") Or Not BOOM.FeuilleExiste("CONSOLIDATION") Then
         MsgBox "Les feuilles PLANNING / CONSOLIDATION sont introuvables." & Chr(10) & _
                "Lancez d'abord 'Generer Planning' depuis UFGenerer.", vbCritical
         Exit Sub
@@ -858,16 +843,47 @@ Private Sub cmdMettreAJour_Click()
     If Trim(txtSemaine.Text) <> "" And Not IsDate(txtSemaine.Text) Then
         MsgBox "Date de semaine invalide (format jj/mm/aaaa).", vbExclamation: Exit Sub
     End If
+    ' IMPORTANT : on capture d'abord les valeurs saisies dans la grille
+    ' "Planning Semaine", car SelectionnerLigneDansListe (juste en dessous)
+    ' modifie lstCollabs.ListIndex, ce qui redeclenche automatiquement
+    ' lstCollabs_Click -> ChargerPlanningSemaine, qui ECRASE la grille
+    ' avec les anciennes valeurs lues sur les feuilles PLANNING/
+    ' CONSOLIDATION. Sans cette capture/restauration, les modifications
+    ' du planning saisies par l'utilisateur etaient perdues avant meme
+    ' d'etre ecrites (c'etait le bug : seules les infos collaborateur,
+    ' deja enregistrees juste avant, etaient prises en compte).
+    Dim capEntree(1 To 7) As String, capSortie(1 To 7) As String
+    Dim capPauseD(1 To 7) As String, capPauseF(1 To 7) As String
+    Dim capComment(1 To 7) As String
+    Dim jCap As Integer
+    For jCap = 1 To 7
+        capEntree(jCap) = Me.Controls("txtEntree" & jCap).Text
+        capSortie(jCap) = Me.Controls("txtSortie" & jCap).Text
+        capPauseD(jCap) = Me.Controls("txtPauseD" & jCap).Text
+        capPauseF(jCap) = Me.Controls("txtPauseF" & jCap).Text
+        capComment(jCap) = Me.Controls("txtComment" & jCap).Text
+    Next jCap
+
     Dim ligneAvant As Long: ligneAvant = m_ligneSelectionnee
     If Not EnregistrerFicheUtilisateur(m_ligneSelectionnee) Then Exit Sub
     ChargerListe txtRecherche.Text
     SelectionnerLigneDansListe ligneAvant
 
+    ' On restaure les valeurs saisies par l'utilisateur, ecrasees par le
+    ' rechargement automatique declenche ci-dessus.
+    For jCap = 1 To 7
+        Me.Controls("txtEntree" & jCap).Text = capEntree(jCap)
+        Me.Controls("txtSortie" & jCap).Text = capSortie(jCap)
+        Me.Controls("txtPauseD" & jCap).Text = capPauseD(jCap)
+        Me.Controls("txtPauseF" & jCap).Text = capPauseF(jCap)
+        Me.Controls("txtComment" & jCap).Text = capComment(jCap)
+    Next jCap
+
     Dim nomComplet As String: nomComplet = Trim(txtNom.Text)
     Dim nomProjet As String: nomProjet = Trim(cboProjet.Text)
 
     Dim wsP As Worksheet, wsC As Worksheet, wsProjet As Worksheet
-    Set wsP = ThisWorkbook.Sheets("PLANNING")
+    Set wsP = ThisWorkbook.Sheets("PLAT")
     Set wsC = ThisWorkbook.Sheets("CONSOLIDATION")
     If BOOM.FeuilleExiste(nomProjet) Then Set wsProjet = ThisWorkbook.Sheets(nomProjet)
 
@@ -927,8 +943,8 @@ Private Sub cmdMettreAJour_Click()
         ' Regle : Maladie = OUI equivaut a "OFF" pour les jours de la
         ' periode d'arret, quelle que soit la saisie du planning.
         If EstJourMaladie(dJour) Then
-            entree = "OFF"
-            sortie = "OFF"
+            entree = "MALADIE"
+            sortie = "MALADIE"
         End If
 
         ' --- PLANNING ---
@@ -987,3 +1003,5 @@ Private Sub cmdMettreAJour_Click()
 
     MsgBox "Planning de la semaine " & semCible & " mis a jour pour " & nomComplet & ".", vbInformation
 End Sub
+
+

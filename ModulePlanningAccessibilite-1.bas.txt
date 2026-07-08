@@ -1,0 +1,951 @@
+Attribute VB_Name = "ModulePlanningAccessibilite"
+
+Option Explicit
+
+'=====================================================================================
+' GENERATEUR DE PLANNING - Projet "Accessibilite"
+'=====================================================================================
+' HYPOTHESES retenues (a adapter si besoin dans le code ci-dessous) :
+'
+' 1. Tout le monde (collaborateurs ET manager) a la meme valeur dans "Activite"
+'    (ex: "Accessibilite") -> cette colonne sert uniquement de filtre projet.
+'    Le role est determine par la colonne "MANAGER" de la BDD, qui vaut "OUI"
+'    pour le(s) manager(s) et "NON" pour les collaborateurs.
+'    -> Si votre BDD utilise un autre libelle que "OUI", adaptez EstManager().
+'
+' 2. Conge actif pour un jour donne si colonne "Conge" est renseignee et differente
+'    de "NON", ET que le jour est compris entre "Conge D" et "Conge F".
+'
+' 3. Maladie active si colonne "Maladie" renseignee et differente de "NON", ET que
+'    le jour est compris entre "Date D'Arret" et "DATE DE REPRISE".
+'
+' 4. Teletravail (TT) : si colonne "TT" renseignee et differente de "NON", ET jour
+'    compris entre "TT D" et "TT F" -> le collaborateur reste aux memes horaires,
+'    on ajoute juste la mention "Teletravail" en commentaire.
+'    Le flag "TT" (O/N) affiche dans le planning est une simple reprise de la
+'    colonne "TT" de la BDD.
+'
+' 5. Contrat / statut :
+'      - Si "Date d'embauche" > jour  -> OFF, commentaire "Pas encore embauche"
+'      - Si "Date de sortie" renseignee et <= jour -> OFF, "Contrat termine"
+'      - Si "Type de contrat" = "Termine" ou "Sorti" -> OFF, "Contrat termine"
+'    (adaptez les libelles dans la fonction GetDayInfo si vos valeurs different)
+'
+' 6. Horaire par defaut (MOTEUR DE ROTATION - voir feuille "ParamRotation") :
+'      - Manager        : Lun-Ven 8h-17h, Sam/Dim OFF (inchange, hors rotation)
+'      - Collaborateurs  : le shift (Ouverture/Fermeture), la pause dejeuner et le
+'        jour de shift reduit (Jeudi/Vendredi) sont determines automatiquement
+'        chaque semaine par le moteur de rotation, a partir d'une table de
+'        parametrage (feuille "ParamRotation") et non plus code en dur.
+'        Voir le bloc "MOTEUR DE ROTATION" plus bas dans ce module pour le detail.
+'      - Sam/Dim : toujours OFF pour tout le monde.
+'
+' Priorite des regles (du + fort au + faible) : Contrat > Maladie > Conge >
+' Exceptions ponctuelles (renforts/remplacements, feuille "Exceptions" si presente)
+' > Rotation (Defaut), puis annotation Teletravail si applicable et que le jour
+' est travaille.
+'
+' La macro :
+'   a) Met a jour les colonnes horaires (LUN. Entree ... DIM. Sortie) de la feuille
+'      "BDD" pour chaque collaborateur/manager du projet et de la semaine choisis.
+'   b) Construit / reconstruit la feuille de planning visuel, nommee comme le projet.
+'   c) Applique le moteur de rotation parametrable pour les collaborateurs.
+'=====================================================================================
+
+Public Const NOM_FEUILLE_BDD As String = "BDD"
+Public Const NOM_FEUILLE_ROTATION As String = "ParamRotation"
+Public Const NOM_FEUILLE_EXCEPTIONS As String = "Exceptions"
+
+'--------------------------------------------------------------------
+' POINT D'ENTREE
+'--------------------------------------------------------------------
+Sub GenererPlanningAccessibilite()
+
+    Dim wsBDD As Worksheet, wsPlan As Worksheet
+    Dim projectName As String, weekStartStr As String
+    Dim weekStart As Date
+    Dim lastRow As Long, r As Long
+    Dim headers As Object
+
+    On Error GoTo ErrHandler
+
+    If Not SheetExists(NOM_FEUILLE_BDD) Then
+        MsgBox "La feuille '" & NOM_FEUILLE_BDD & "' est introuvable.", vbCritical
+        Exit Sub
+    End If
+    Set wsBDD = ThisWorkbook.Sheets(NOM_FEUILLE_BDD)
+
+    ' S'assure que la table de rotation existe (la cree avec des valeurs par
+    ' defaut modifiables si elle n'existe pas encore).
+    EnsureParamRotationSheet
+
+    projectName = InputBox("Nom du projet / de l'activite a generer (ex: Accessibilite) :", _
+                            "Generation du planning", "Accessibilite")
+    If Trim(projectName) = "" Then Exit Sub
+
+    weekStartStr = InputBox("Date du LUNDI de la semaine a generer (jj/mm/aaaa) :", _
+                             "Generation du planning", _
+                             Format(Date - Weekday(Date, vbMonday) + 1, "dd/mm/yyyy"))
+    If Trim(weekStartStr) = "" Then Exit Sub
+    If Not IsDate(weekStartStr) Then
+        MsgBox "Date invalide.", vbExclamation
+        Exit Sub
+    End If
+    weekStart = CDate(weekStartStr)
+    weekStart = weekStart - Weekday(weekStart, vbMonday) + 1 ' recale sur le lundi
+
+    Set headers = GetHeaderMap(wsBDD)
+
+    lastRow = wsBDD.Cells(wsBDD.Rows.Count, GetCol(headers, "MATRICULE")).End(xlUp).Row
+    If lastRow < 2 Then
+        MsgBox "Aucune donnee trouvee dans la BDD.", vbExclamation
+        Exit Sub
+    End If
+
+    Set wsPlan = PreparePlanningSheet(projectName)
+
+    Dim colActivite As Long, colManager As Long
+    colActivite = GetCol(headers, "ACTIVITE")
+    colManager = GetCol(headers, "MANAGER")
+
+    Dim collabRows() As Long, managerRows() As Long
+    Dim nCollab As Long, nManager As Long
+    nCollab = 0: nManager = 0
+    ReDim collabRows(1 To lastRow)
+    ReDim managerRows(1 To lastRow)
+
+    For r = 2 To lastRow
+        Dim actVal As String, managerFlag As String
+        actVal = Trim(wsBDD.Cells(r, colActivite).Value)
+        managerFlag = Trim(wsBDD.Cells(r, colManager).Value)
+        If StrComp(actVal, projectName, vbTextCompare) = 0 Then
+            If EstManager(managerFlag) Then
+                nManager = nManager + 1
+                managerRows(nManager) = r
+            Else
+                nCollab = nCollab + 1
+                collabRows(nCollab) = r
+            End If
+        End If
+    Next r
+
+    If nCollab = 0 And nManager = 0 Then
+        MsgBox "Aucune ligne trouvee pour l'activite '" & projectName & _
+               "' (ou 'Manager') dans la BDD.", vbExclamation
+        Exit Sub
+    End If
+
+    ' ---- MOTEUR DE ROTATION : preparation ------------------------------
+    ' 1) Chaque collaborateur se voit attribuer un "index de rotation" STABLE,
+    '    base sur le tri par MATRICULE (et non sur l'ordre des lignes de la BDD,
+    '    qui peut changer). Cet index est ce qui garantit l'equite dans le temps :
+    '    un meme collaborateur ne reste jamais bloque sur le meme slot.
+    ' 2) On calcule ensuite l'indice de la semaine dans le cycle de rotation
+    '    (weekIndexInCycle), a partir de la semaine de reference definie dans
+    '    la feuille ParamRotation.
+    Dim agentIndex() As Long
+    ReDim agentIndex(1 To nCollab)
+    SortCollabByMatricule wsBDD, headers, collabRows, agentIndex, nCollab
+
+    Dim cycleLength As Long, refMonday As Date
+    Dim rotationTable As Object
+    Set rotationTable = ReadRotationTable(cycleLength, refMonday)
+
+    Dim weekIndexInCycle As Long
+    weekIndexInCycle = ComputeWeekIndexInCycle(weekStart, refMonday, cycleLength)
+    ' ----------------------------------------------------------------------
+
+    Dim outRow As Long
+    Dim i As Long
+
+    ' --- Section collaborateurs ---
+    outRow = WriteSectionHeader(wsPlan, 1, weekStart, "Collaborateur")
+    For i = 1 To nCollab
+        outRow = ProcessRow(wsBDD, wsPlan, headers, collabRows(i), weekStart, outRow, False, _
+                             agentIndex(i), weekIndexInCycle, cycleLength, rotationTable)
+    Next i
+
+    ' --- Table de reference du cycle de rotation en cours ---
+    WriteShiftReferenceTable wsPlan, outRow + 2, rotationTable, cycleLength, weekIndexInCycle
+
+    ' --- Section manager ---
+    Dim managerStartRow As Long
+    managerStartRow = outRow + 6
+    outRow = WriteSectionHeader(wsPlan, managerStartRow, weekStart, "Manager")
+    For i = 1 To nManager
+        outRow = ProcessRow(wsBDD, wsPlan, headers, managerRows(i), weekStart, outRow, True, _
+                             -1, weekIndexInCycle, cycleLength, rotationTable)
+    Next i
+
+    wsPlan.Columns.AutoFit
+    MsgBox "Planning genere avec succes dans la feuille '" & wsPlan.Name & "'." & vbCrLf & _
+           "La BDD a ete mise a jour pour la semaine du " & Format(weekStart, "dd/mm/yyyy") & "." & vbCrLf & _
+           "Cycle de rotation : " & cycleLength & " semaine(s) - semaine " & (weekIndexInCycle + 1) & _
+           " / " & cycleLength & " du cycle.", vbInformation
+    Exit Sub
+
+ErrHandler:
+    MsgBox "Erreur : " & Err.Description, vbCritical
+End Sub
+
+'--------------------------------------------------------------------
+' Detection du role Manager - ADAPTER ICI si votre critere est different
+' (se base sur la colonne "MANAGER" de la BDD : "OUI" = manager)
+'--------------------------------------------------------------------
+Function EstManager(ByVal managerFlagValue As String) As Boolean
+    EstManager = (StrComp(Trim(managerFlagValue), "OUI", vbTextCompare) = 0)
+End Function
+
+'=====================================================================================
+' MOTEUR DE ROTATION
+'=====================================================================================
+' Principe : chaque collaborateur possede un index fixe (0, 1, 2, ...) base sur le
+' tri par MATRICULE. Chaque semaine, on calcule "weekIndexInCycle" = le rang de la
+' semaine dans le cycle configure (0 a cycleLength-1). Le "slot" attribue a un
+' collaborateur donne pour une semaine donnee est :
+'
+'       slot = (agentIndex + weekIndexInCycle) MOD cycleLength
+'
+' Chaque slot est une ligne de la feuille "ParamRotation" qui definit, pour la
+' semaine en cours : l'heure d'entree/sortie (Ouverture ou Fermeture), la pause
+' dejeuner, et l'eventuel jour de shift reduit (Jeudi/Vendredi) avec son heure de
+' fin. Comme (agentIndex + weekIndexInCycle) change chaque semaine, chaque
+' collaborateur "tourne" automatiquement sur l'ensemble des slots au fil des
+' semaines : ouvertures, fermetures, creneaux de pause et shifts reduits sont
+' ainsi repartis equitablement, sans aucune valeur codee en dur.
+'
+' Pour faire evoluer les regles metier (horaires, nombre de creneaux de pause,
+' jours de shift reduit, longueur du cycle...), il suffit de modifier la feuille
+' "ParamRotation" - AUCUNE modification de code n'est necessaire.
+'=====================================================================================
+
+'--------------------------------------------------------------------
+' Cree la feuille ParamRotation avec des valeurs par defaut si elle
+' n'existe pas encore. Ne touche pas a la feuille si elle existe deja.
+'--------------------------------------------------------------------
+Sub EnsureParamRotationSheet()
+    If SheetExists(NOM_FEUILLE_ROTATION) Then Exit Sub
+
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+    ws.Name = NOM_FEUILLE_ROTATION
+
+    With ws
+        .Cells(1, 1).Value = "PARAMETRAGE DU MOTEUR DE ROTATION"
+        .Cells(1, 1).Font.Bold = True
+        .Cells(1, 1).Font.Size = 12
+
+        .Cells(3, 1).Value = "Longueur du cycle (semaines)"
+        .Cells(3, 2).Value = 4
+        .Cells(3, 3).Value = "-> valeurs autorisees : 2, 4, 6 ou 8"
+
+        .Cells(4, 1).Value = "Lundi de la semaine de reference (slot 0)"
+        .Cells(4, 2).Value = DateSerial(2026, 6, 29) ' Lundi de la semaine ISO 27, 2026
+        .Cells(4, 2).NumberFormat = "dd/mm/yyyy"
+        .Cells(4, 3).Value = "-> premier lundi observe (S27 2026) ; ajustez si besoin"
+
+        ' Validation de liste sur la longueur de cycle
+        On Error Resume Next
+        .Cells(3, 2).Validation.Delete
+        .Cells(3, 2).Validation.Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
+            Formula1:="2,4,6,8"
+        On Error GoTo 0
+
+        ' En-tetes de la table de rotation (une ligne = un slot)
+        Dim hdrRow As Long
+        hdrRow = 6
+        .Cells(hdrRow, 1).Value = "Slot"
+        .Cells(hdrRow, 2).Value = "Type de shift"
+        .Cells(hdrRow, 3).Value = "Heure entree"
+        .Cells(hdrRow, 4).Value = "Heure sortie"
+        .Cells(hdrRow, 5).Value = "Pause debut"
+        .Cells(hdrRow, 6).Value = "Pause fin"
+        .Cells(hdrRow, 7).Value = "Jour shift reduit"
+        .Cells(hdrRow, 8).Value = "Heure fin (shift reduit)"
+
+        With .Range(.Cells(hdrRow, 1), .Cells(hdrRow, 8))
+            .Interior.Color = RGB(31, 73, 125)
+            .Font.Color = RGB(255, 255, 255)
+            .Font.Bold = True
+            .HorizontalAlignment = xlCenter
+        End With
+
+        ' Exemple de table par defaut sur 4 slots, reprenant la logique observee
+        ' sur S27/S28 : alternance Ouverture/Fermeture, rotation de la pause sur
+        ' 4 creneaux, et rotation du jour de shift reduit (Jeudi/Vendredi).
+        ' A ADAPTER selon vos regles reelles (nombre de lignes = longueur du cycle).
+        Dim exempleData As Variant
+        exempleData = Array( _
+            Array(0, "Ouverture", 7, 17, TimeSerial(12, 0, 0), TimeSerial(13, 0, 0), "Vendredi", 16), _
+            Array(1, "Fermeture", 8, 18, TimeSerial(12, 30, 0), TimeSerial(13, 30, 0), "Jeudi", 16), _
+            Array(2, "Ouverture", 7, 17, TimeSerial(13, 0, 0), TimeSerial(14, 0, 0), "Jeudi", 17), _
+            Array(3, "Fermeture", 8, 18, TimeSerial(13, 30, 0), TimeSerial(14, 30, 0), "Vendredi", 17) _
+        )
+
+        Dim rIdx As Long
+        For rIdx = 0 To UBound(exempleData)
+            Dim rowData As Variant
+            rowData = exempleData(rIdx)
+            .Cells(hdrRow + 1 + rIdx, 1).Value = rowData(0)
+            .Cells(hdrRow + 1 + rIdx, 2).Value = rowData(1)
+            .Cells(hdrRow + 1 + rIdx, 3).Value = rowData(2)
+            .Cells(hdrRow + 1 + rIdx, 4).Value = rowData(3)
+            .Cells(hdrRow + 1 + rIdx, 5).Value = rowData(4)
+            .Cells(hdrRow + 1 + rIdx, 5).NumberFormat = "hh:mm"
+            .Cells(hdrRow + 1 + rIdx, 6).Value = rowData(5)
+            .Cells(hdrRow + 1 + rIdx, 6).NumberFormat = "hh:mm"
+            .Cells(hdrRow + 1 + rIdx, 7).Value = rowData(6)
+            .Cells(hdrRow + 1 + rIdx, 8).Value = rowData(7)
+        Next rIdx
+
+        .Cells(hdrRow + 1 + UBound(exempleData) + 2, 1).Value = _
+            "Note : le nombre de lignes de la table DOIT etre egal a la longueur du cycle (B3)."
+        .Cells(hdrRow + 1 + UBound(exempleData) + 3, 1).Value = _
+            "Colonne 'Jour shift reduit' : laissez vide si le slot n'a pas de jour reduit ; sinon 'Jeudi' ou 'Vendredi'."
+
+        .Columns.AutoFit
+    End With
+End Sub
+
+'--------------------------------------------------------------------
+' Lit la table de rotation dans la feuille ParamRotation.
+' Retourne un Dictionary {slot (as String) -> Array(entreeH, sortieH, _
+'                          pauseDebut (Date), pauseFin (Date), jourReduit, heureFinReduit)}
+' Renseigne cycleLength et refMonday en ByRef.
+'--------------------------------------------------------------------
+Function ReadRotationTable(ByRef cycleLength As Long, ByRef refMonday As Date) As Object
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets(NOM_FEUILLE_ROTATION)
+
+    cycleLength = CLng(ws.Cells(3, 2).Value)
+    If cycleLength <> 2 And cycleLength <> 4 And cycleLength <> 6 And cycleLength <> 8 Then
+        Err.Raise vbObjectError + 10, , _
+            "Longueur de cycle invalide dans '" & NOM_FEUILLE_ROTATION & "' (cellule B3). " & _
+            "Valeurs autorisees : 2, 4, 6 ou 8."
+    End If
+
+    If Not IsDate(ws.Cells(4, 2).Value) Then
+        Err.Raise vbObjectError + 11, , _
+            "Date de semaine de reference invalide dans '" & NOM_FEUILLE_ROTATION & "' (cellule B4)."
+    End If
+    refMonday = CDate(ws.Cells(4, 2).Value)
+    refMonday = refMonday - Weekday(refMonday, vbMonday) + 1 ' securite : recale sur un lundi
+
+    Dim dict As Object
+    Set dict = CreateObject("Scripting.Dictionary")
+
+    Dim hdrRow As Long, r As Long
+    hdrRow = 6
+    For r = hdrRow + 1 To hdrRow + cycleLength
+        If Trim(ws.Cells(r, 1).Value) = "" Then
+            Err.Raise vbObjectError + 12, , _
+                "Il manque des lignes dans la table de rotation de '" & NOM_FEUILLE_ROTATION & _
+                "' : " & cycleLength & " ligne(s) attendue(s) (une par slot, de 0 a " & (cycleLength - 1) & ")."
+        End If
+
+        Dim slotKey As String
+        slotKey = CStr(CLng(ws.Cells(r, 1).Value))
+
+        Dim entreeH As Integer, sortieH As Integer
+        entreeH = CInt(ws.Cells(r, 3).Value)
+        sortieH = CInt(ws.Cells(r, 4).Value)
+
+        Dim pauseDebut As Date, pauseFin As Date
+        pauseDebut = CDate(ws.Cells(r, 5).Value)
+        pauseFin = CDate(ws.Cells(r, 6).Value)
+
+        Dim jourReduit As String
+        jourReduit = Trim(ws.Cells(r, 7).Value)
+
+        Dim heureFinReduit As Integer
+        If Trim(ws.Cells(r, 8).Value) <> "" Then
+            heureFinReduit = CInt(ws.Cells(r, 8).Value)
+        Else
+            heureFinReduit = sortieH
+        End If
+
+        If dict.Exists(slotKey) Then
+            Err.Raise vbObjectError + 13, , _
+                "Slot " & slotKey & " duplique dans la table de rotation de '" & NOM_FEUILLE_ROTATION & "'."
+        End If
+        dict.Add slotKey, Array(entreeH, sortieH, pauseDebut, pauseFin, jourReduit, heureFinReduit)
+    Next r
+
+    Set ReadRotationTable = dict
+End Function
+
+'--------------------------------------------------------------------
+' Calcule le rang de la semaine "weekStart" dans le cycle de rotation,
+' par rapport a la semaine de reference (slot 0). Gere correctement les
+' semaines de reference futures ou passees (modulo toujours positif).
+'--------------------------------------------------------------------
+Function ComputeWeekIndexInCycle(weekStart As Date, refMonday As Date, cycleLength As Long) As Long
+    Dim diffWeeks As Long
+    diffWeeks = CLng((weekStart - refMonday) / 7)
+    ComputeWeekIndexInCycle = ((diffWeeks Mod cycleLength) + cycleLength) Mod cycleLength
+End Function
+
+'--------------------------------------------------------------------
+' Trie les lignes collaborateurs par MATRICULE croissant et calcule, pour
+' chacune (dans l'ordre trie), un index de rotation stable 0, 1, 2, ...
+' agentIndexOut(i) correspond a collabRows(i) APRES tri (tri en place des
+' deux tableaux en parallele).
+'--------------------------------------------------------------------
+Sub SortCollabByMatricule(wsBDD As Worksheet, headers As Object, ByRef collabRows() As Long, _
+                           ByRef agentIndexOut() As Long, nCollab As Long)
+    Dim colMatricule As Long
+    colMatricule = GetCol(headers, "MATRICULE")
+
+    Dim i As Long, j As Long
+    Dim tmpRow As Long
+    For i = 1 To nCollab - 1
+        For j = 1 To nCollab - i
+            Dim matA As String, matB As String
+            matA = CStr(wsBDD.Cells(collabRows(j), colMatricule).Value)
+            matB = CStr(wsBDD.Cells(collabRows(j + 1), colMatricule).Value)
+            If StrComp(matA, matB, vbTextCompare) > 0 Then
+                tmpRow = collabRows(j)
+                collabRows(j) = collabRows(j + 1)
+                collabRows(j + 1) = tmpRow
+            End If
+        Next j
+    Next i
+
+    For i = 1 To nCollab
+        agentIndexOut(i) = i - 1 ' index 0-based
+    Next i
+End Sub
+
+'--------------------------------------------------------------------
+' Point d'extension pour renforts / remplacements / exceptions ponctuelles.
+' Si une feuille "Exceptions" existe (colonnes : MATRICULE, DATE_DEBUT,
+' DATE_FIN, HEURE_ENTREE, HEURE_SORTIE, COMMENTAIRE), elle est consultee
+' AVANT la rotation standard, sans jamais modifier la logique de rotation
+' elle-meme. Retourne True si une exception s'applique pour ce jour/agent
+' (et renseigne entreeH/sortieH/comment en ByRef).
+'--------------------------------------------------------------------
+Function GetExceptionOverride(matricule As String, dayDate As Date, _
+                               ByRef entreeH As Integer, ByRef sortieH As Integer, _
+                               ByRef comment As String) As Boolean
+    GetExceptionOverride = False
+    If Not SheetExists(NOM_FEUILLE_EXCEPTIONS) Then Exit Function
+
+    Dim wsExc As Worksheet
+    Set wsExc = ThisWorkbook.Sheets(NOM_FEUILLE_EXCEPTIONS)
+
+    Dim lastRow As Long, r As Long
+    lastRow = wsExc.Cells(wsExc.Rows.Count, 1).End(xlUp).Row
+    If lastRow < 2 Then Exit Function
+
+    For r = 2 To lastRow
+        If StrComp(Trim(CStr(wsExc.Cells(r, 1).Value)), matricule, vbTextCompare) = 0 Then
+            Dim dD As Variant, dF As Variant
+            dD = wsExc.Cells(r, 2).Value
+            dF = wsExc.Cells(r, 3).Value
+            If IsDate(dD) And IsDate(dF) Then
+                If dayDate >= CDate(dD) And dayDate <= CDate(dF) Then
+                    entreeH = CInt(wsExc.Cells(r, 4).Value)
+                    sortieH = CInt(wsExc.Cells(r, 5).Value)
+                    comment = CStr(wsExc.Cells(r, 6).Value)
+                    If comment = "" Then comment = "Renfort / remplacement"
+                    GetExceptionOverride = True
+                    Exit Function
+                End If
+            End If
+        End If
+    Next r
+End Function
+
+'=====================================================================================
+' FIN DU BLOC MOTEUR DE ROTATION
+'=====================================================================================
+
+'--------------------------------------------------------------------
+' Traite une ligne BDD (collaborateur ou manager) : calcule les horaires
+' de la semaine, met a jour la BDD, ecrit la ligne dans le planning.
+' Retourne la prochaine ligne libre dans la feuille planning.
+'--------------------------------------------------------------------
+Function ProcessRow(wsBDD As Worksheet, wsPlan As Worksheet, headers As Object, _
+                     rowBDD As Long, weekStart As Date, outRow As Long, _
+                     isManager As Boolean, agentIndex As Long, weekIndexInCycle As Long, _
+                     cycleLength As Long, rotationTable As Object) As Long
+
+    Dim nomComplet As String, zone As String, matricule As String
+    nomComplet = Trim(wsBDD.Cells(rowBDD, GetCol(headers, "NOMCOMPLET")).Value)
+    If nomComplet = "" Then
+        nomComplet = Trim(wsBDD.Cells(rowBDD, GetCol(headers, "NOM")).Value & " " & _
+                           wsBDD.Cells(rowBDD, GetCol(headers, "PRENOM")).Value)
+    End If
+    zone = Trim(wsBDD.Cells(rowBDD, GetCol(headers, "ZONES")).Value)
+    matricule = CStr(wsBDD.Cells(rowBDD, GetCol(headers, "MATRICULE")).Value)
+
+    wsPlan.Cells(outRow, 1).Value = zone
+    wsPlan.Cells(outRow, 2).Value = nomComplet
+    wsPlan.Cells(outRow, 1).Font.Bold = True
+    wsPlan.Cells(outRow, 2).Font.Bold = True
+
+    ' ---- Determination du slot de rotation (collaborateurs uniquement) ----
+    Dim shiftEntreeH As Integer, shiftSortieH As Integer
+    Dim pauseDebut As Date, pauseFin As Date, pauseDureeH As Double
+    Dim jourReduit As String, heureFinReduit As Integer
+    Dim slot As Long
+
+    If Not isManager Then
+        slot = (agentIndex + weekIndexInCycle) Mod cycleLength
+        Dim slotData As Variant
+        slotData = rotationTable(CStr(slot))
+        shiftEntreeH = slotData(0)
+        shiftSortieH = slotData(1)
+        pauseDebut = slotData(2)
+        pauseFin = slotData(3)
+        jourReduit = slotData(4)
+        heureFinReduit = slotData(5)
+        pauseDureeH = (CDbl(pauseFin) - CDbl(pauseDebut)) * 24
+        If pauseDureeH <= 0 Then pauseDureeH = 1 ' securite si mal renseigne
+    Else
+        pauseDureeH = 1 ' pause fixe 13h-14h pour les managers (comportement d'origine)
+    End If
+
+    Dim offCount As Long, totalHeures As Double
+    Dim comments As Object
+    Set comments = CreateObject("Scripting.Dictionary")
+    offCount = 0
+    totalHeures = 0
+
+    Dim dayIndex As Integer
+    For dayIndex = 1 To 7
+        Dim dayDate As Date
+        dayDate = weekStart + (dayIndex - 1)
+
+        Dim info As Variant
+        info = GetDayInfo(wsBDD, headers, rowBDD, dayDate, dayIndex, isManager, matricule, _
+                           shiftEntreeH, shiftSortieH, jourReduit, heureFinReduit)
+        Dim entreeH As Integer, sortieH As Integer, isOff As Boolean, comment As String
+        entreeH = info(0): sortieH = info(1): isOff = info(2): comment = info(3)
+
+        Dim colEntreeBDD As Long, colSortieBDD As Long
+        colEntreeBDD = GetCol(headers, DayColKey(dayIndex, True))
+        colSortieBDD = GetCol(headers, DayColKey(dayIndex, False))
+
+        Dim colEntreePlan As Long, colSortiePlan As Long
+        colEntreePlan = 3 + (dayIndex - 1) * 2
+        colSortiePlan = colEntreePlan + 1
+
+
+        If isOff Then
+            wsBDD.Cells(rowBDD, colEntreeBDD).Value = "OFF"
+            wsBDD.Cells(rowBDD, colSortieBDD).Value = "OFF"
+            wsPlan.Cells(outRow, colEntreePlan).Value = "OFF"
+            wsPlan.Cells(outRow, colSortiePlan).Value = "OFF"
+            wsPlan.Range(wsPlan.Cells(outRow, colEntreePlan), wsPlan.Cells(outRow, colSortiePlan)) _
+                .Font.Color = RGB(200, 0, 0)
+            offCount = offCount + 1
+        Else
+            wsBDD.Cells(rowBDD, colEntreeBDD).Value = TimeSerial(entreeH, 0, 0)
+            wsBDD.Cells(rowBDD, colEntreeBDD).NumberFormat = "hh""H"""
+            wsBDD.Cells(rowBDD, colSortieBDD).Value = TimeSerial(sortieH, 0, 0)
+            wsBDD.Cells(rowBDD, colSortieBDD).NumberFormat = "hh""H"""
+
+            wsPlan.Cells(outRow, colEntreePlan).Value = TimeSerial(entreeH, 0, 0)
+            wsPlan.Cells(outRow, colEntreePlan).NumberFormat = "h:mm"
+            wsPlan.Cells(outRow, colSortiePlan).Value = TimeSerial(sortieH, 0, 0)
+            wsPlan.Cells(outRow, colSortiePlan).NumberFormat = "h:mm"
+
+            totalHeures = totalHeures + (sortieH - entreeH) - pauseDureeH
+        End If
+
+        If comment <> "" And StrComp(comment, "RAS", vbTextCompare) <> 0 Then
+            If Not comments.Exists(comment) Then comments.Add comment, True
+        End If
+    Next dayIndex
+
+    ' OFF
+    wsPlan.Cells(outRow, 17).Value = offCount
+    ' NB heures planifiees (format cumule sur plus de 24h)
+    wsPlan.Cells(outRow, 18).Value = totalHeures / 24
+    wsPlan.Cells(outRow, 18).NumberFormat = "[h]:mm:ss"
+    ' TT (reprise simple de la colonne TT de la BDD)
+    Dim ttRaw As String
+    ttRaw = Trim(wsBDD.Cells(rowBDD, GetCol(headers, "TT")).Value)
+    wsPlan.Cells(outRow, 19).Value = IIf(ttRaw <> "" And StrComp(ttRaw, "NON", vbTextCompare) <> 0, "O", "N")
+    ' Pause dejeuner de la semaine (issue de la rotation pour les collaborateurs)
+    If Not isManager Then
+        wsPlan.Cells(outRow, 20).Value = Format(pauseDebut, "hh:mm") & " - " & Format(pauseFin, "hh:mm")
+    Else
+        wsPlan.Cells(outRow, 20).Value = "13:00 - 14:00"
+    End If
+    wsPlan.Cells(outRow, 20).HorizontalAlignment = xlCenter
+    ' Commentaires
+    If comments.Count = 0 Then
+        wsPlan.Cells(outRow, 21).Value = "RAS"
+    Else
+        Dim k As Variant, txt As String
+        For Each k In comments.Keys
+            txt = txt & IIf(txt = "", "", " / ") & k
+        Next k
+        wsPlan.Cells(outRow, 21).Value = txt
+    End If
+
+    ProcessRow = outRow + 1
+End Function
+
+'--------------------------------------------------------------------
+' Calcule l'horaire/l'etat d'un jour donne pour une ligne BDD
+' Retourne un tableau : (entreeHeure, sortieHeure, isOff, commentaire)
+'
+' shiftEntreeH/shiftSortieH/jourReduit/heureFinReduit proviennent du slot
+' de rotation attribue au collaborateur pour la semaine en cours (non
+' utilises pour les managers, qui gardent l'horaire fixe d'origine).
+'--------------------------------------------------------------------
+Function GetDayInfo(wsBDD As Worksheet, headers As Object, rowBDD As Long, _
+                     dayDate As Date, dayIndex As Integer, isManager As Boolean, _
+                     matricule As String, shiftEntreeH As Integer, shiftSortieH As Integer, _
+                     jourReduit As String, heureFinReduit As Integer) As Variant
+
+    Dim entreeH As Integer, sortieH As Integer, isOff As Boolean, comment As String
+    isOff = False
+    comment = ""
+
+    ' 1) Contrat / statut ------------------------------------------------
+    Dim dEmbauche As Variant, dSortie As Variant, typeContrat As String
+    dEmbauche = wsBDD.Cells(rowBDD, GetCol(headers, "DATEDEMBAUCHE")).Value
+    dSortie = wsBDD.Cells(rowBDD, GetCol(headers, "DATEDESORTIE")).Value
+    typeContrat = Trim(wsBDD.Cells(rowBDD, GetCol(headers, "TYPEDECONTRAT")).Value)
+
+    If IsDate(dEmbauche) Then
+        If dayDate < CDate(dEmbauche) Then
+            isOff = True: comment = "Pas encore embauche"
+        End If
+    End If
+    If Not isOff And IsDate(dSortie) Then
+        If dayDate >= CDate(dSortie) Then
+            isOff = True: comment = "Contrat termine"
+        End If
+    End If
+    If Not isOff And (StrComp(typeContrat, "Termine", vbTextCompare) = 0 _
+                       Or StrComp(typeContrat, "Sorti", vbTextCompare) = 0) Then
+        isOff = True: comment = "Contrat termine"
+    End If
+
+    ' 2) Maladie ----------------------------------------------------------
+    If Not isOff Then
+        Dim maladieVal As String, dArret As Variant, dRepr As Variant
+        maladieVal = Trim(wsBDD.Cells(rowBDD, GetCol(headers, "MALADIE")).Value)
+        dArret = wsBDD.Cells(rowBDD, GetCol(headers, "DATEDARRET")).Value
+        dRepr = wsBDD.Cells(rowBDD, GetCol(headers, "DATEDEREPRISE")).Value
+        If maladieVal <> "" And StrComp(maladieVal, "NON", vbTextCompare) <> 0 Then
+            Dim okStartM As Boolean, okEndM As Boolean
+            okStartM = (Not IsDate(dArret)) Or (dayDate >= CDate(dArret))
+            okEndM = (Not IsDate(dRepr)) Or (dayDate <= CDate(dRepr))
+            If okStartM And okEndM Then
+                isOff = True: comment = "Maladie"
+            End If
+        End If
+    End If
+
+    ' 3) Conge --------------------------------------------------------------
+    If Not isOff Then
+        Dim congeVal As String, cD As Variant, cF As Variant, typeConge As String
+        congeVal = Trim(wsBDD.Cells(rowBDD, GetCol(headers, "CONGE")).Value)
+        cD = wsBDD.Cells(rowBDD, GetCol(headers, "CONGED")).Value
+        cF = wsBDD.Cells(rowBDD, GetCol(headers, "CONGEF")).Value
+        typeConge = Trim(wsBDD.Cells(rowBDD, GetCol(headers, "TYPEDECONGE")).Value)
+        If congeVal <> "" And StrComp(congeVal, "NON", vbTextCompare) <> 0 Then
+            Dim okStartC As Boolean, okEndC As Boolean
+            okStartC = (Not IsDate(cD)) Or (dayDate >= CDate(cD))
+            okEndC = (Not IsDate(cF)) Or (dayDate <= CDate(cF))
+            If okStartC And okEndC Then
+                isOff = True
+                comment = IIf(typeConge <> "", typeConge, "Conge")
+            End If
+        End If
+    End If
+
+    ' 3bis) Exceptions ponctuelles (renforts / remplacements) --------------
+    '        Point d'extension : consulte la feuille "Exceptions" si presente,
+    '        AVANT d'appliquer la rotation standard. N'affecte jamais la
+    '        logique de rotation elle-meme (voir GetExceptionOverride).
+    Dim exceptionApplied As Boolean
+    exceptionApplied = False
+    If Not isOff Then
+        Dim excEntree As Integer, excSortie As Integer, excComment As String
+        If GetExceptionOverride(matricule, dayDate, excEntree, excSortie, excComment) Then
+            entreeH = excEntree
+            sortieH = excSortie
+            comment = excComment
+            exceptionApplied = True
+        End If
+    End If
+
+    ' 4) Horaire par defaut si aucune exception n'a mis la journee en OFF,
+    '    et si aucune exception ponctuelle n'a deja fixe l'horaire --------
+    If Not isOff And Not exceptionApplied Then
+        If isManager Then
+            entreeH = 8
+            If dayIndex <= 5 Then
+                sortieH = 17
+            Else
+                isOff = True
+            End If
+        Else
+            ' ---- MOTEUR DE ROTATION (voir bloc dedie plus haut) ----
+            If dayIndex >= 1 And dayIndex <= 5 Then
+                entreeH = shiftEntreeH
+                sortieH = shiftSortieH
+                ' Application du shift reduit si ce jour correspond au jour
+                ' reduit attribue au slot de la semaine pour ce collaborateur.
+                If jourReduit <> "" Then
+                    If (dayIndex = 4 And StrComp(jourReduit, "Jeudi", vbTextCompare) = 0) Or _
+                       (dayIndex = 5 And StrComp(jourReduit, "Vendredi", vbTextCompare) = 0) Then
+                        sortieH = heureFinReduit
+                        comment = "Shift reduit"
+                    End If
+                End If
+            Else
+                isOff = True ' Samedi / Dimanche : toujours OFF
+            End If
+        End If
+        If comment = "" Then comment = "RAS"
+    ElseIf isOff Then
+        If comment = "" Then comment = "RAS" ' week-end normal, sans cause particuliere
+    End If
+
+    ' 5) Teletravail : annotation seule, horaire inchange ---------------------
+    If Not isOff Then
+        Dim ttVal As String, ttD As Variant, ttF As Variant
+        ttVal = Trim(wsBDD.Cells(rowBDD, GetCol(headers, "TT")).Value)
+        ttD = wsBDD.Cells(rowBDD, GetCol(headers, "TTD")).Value
+        ttF = wsBDD.Cells(rowBDD, GetCol(headers, "TTF")).Value
+        If ttVal <> "" And StrComp(ttVal, "NON", vbTextCompare) <> 0 Then
+            Dim okStartT As Boolean, okEndT As Boolean
+            okStartT = (Not IsDate(ttD)) Or (dayDate >= CDate(ttD))
+            okEndT = (Not IsDate(ttF)) Or (dayDate <= CDate(ttF))
+            If okStartT And okEndT Then
+                If StrComp(comment, "RAS", vbTextCompare) = 0 Then
+                    comment = "Teletravail"
+                Else
+                    comment = comment & " / Teletravail"
+                End If
+            End If
+        End If
+    End If
+
+    GetDayInfo = Array(entreeH, sortieH, isOff, comment)
+End Function
+
+'--------------------------------------------------------------------
+' Cle de colonne BDD normalisee pour un jour/sens donne (ex: "LUNENTREE")
+'--------------------------------------------------------------------
+Function DayColKey(dayIndex As Integer, isEntree As Boolean) As String
+    Dim prefixes As Variant
+    prefixes = Array("LUN", "MAR", "MER", "JEU", "VEN", "SAM", "DIM")
+    DayColKey = prefixes(dayIndex - 1) & IIf(isEntree, "ENTREE", "SORTIE")
+End Function
+
+Function DayLabel(dayIndex As Integer) As String
+    Dim labels As Variant
+    labels = Array("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+    DayLabel = labels(dayIndex - 1)
+End Function
+
+'--------------------------------------------------------------------
+' Prepare (recree) la feuille de planning nommee d'apres le projet
+'--------------------------------------------------------------------
+Function PreparePlanningSheet(ByVal projectName As String) As Worksheet
+    Dim sheetName As String
+    sheetName = CleanSheetName(projectName)
+
+    Application.DisplayAlerts = False
+    If SheetExists(sheetName) Then
+        ThisWorkbook.Sheets(sheetName).Delete
+    End If
+    Application.DisplayAlerts = True
+
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+    ws.Name = sheetName
+    Set PreparePlanningSheet = ws
+End Function
+
+Function CleanSheetName(ByVal s As String) As String
+    Dim r As String
+    r = s
+    Dim badChars As Variant, ch As Variant
+    badChars = Array(":", "\", "/", "?", "*", "[", "]")
+    For Each ch In badChars
+        r = Replace(r, ch, "")
+    Next ch
+    If Len(r) > 31 Then r = Left(r, 31)
+    CleanSheetName = r
+End Function
+
+Function SheetExists(ByVal sheetName As String) As Boolean
+    Dim ws As Worksheet
+    On Error Resume Next
+    Set ws = ThisWorkbook.Sheets(sheetName)
+    On Error GoTo 0
+    SheetExists = Not ws Is Nothing
+End Function
+
+'--------------------------------------------------------------------
+' Ecrit les deux lignes d'en-tete (semaine + libelles colonnes) et
+' retourne la premiere ligne de donnees disponible.
+'--------------------------------------------------------------------
+Function WriteSectionHeader(wsPlan As Worksheet, startRow As Long, weekStart As Date, _
+                             roleLabel As String) As Long
+
+    Dim r1 As Long, r2 As Long
+    r1 = startRow
+    r2 = startRow + 1
+
+    Dim weekNum As Long
+    On Error Resume Next
+    weekNum = Application.WorksheetFunction.IsoWeekNum(weekStart)
+    On Error GoTo 0
+
+    Dim headerFill As Long, headerFont As Long
+    headerFill = RGB(31, 73, 125)
+    headerFont = RGB(255, 255, 255)
+
+    With wsPlan.Range(wsPlan.Cells(r1, 1), wsPlan.Cells(r1, 2))
+        .Merge
+        .Value = "S" & weekNum
+        .HorizontalAlignment = xlCenter
+        .Interior.Color = headerFill
+        .Font.Color = headerFont
+        .Font.Bold = True
+    End With
+
+    Dim dayIndex As Integer
+    For dayIndex = 1 To 7
+        Dim c1 As Long, c2 As Long
+        c1 = 3 + (dayIndex - 1) * 2
+        c2 = c1 + 1
+        Dim dayDate As Date
+        dayDate = weekStart + (dayIndex - 1)
+        With wsPlan.Range(wsPlan.Cells(r1, c1), wsPlan.Cells(r1, c2))
+            .Merge
+            .Value = DayLabel(dayIndex) & " " & Format(dayDate, "dd mmmm yyyy")
+            .HorizontalAlignment = xlCenter
+            .Interior.Color = headerFill
+            .Font.Color = headerFont
+            .Font.Bold = True
+        End With
+        wsPlan.Cells(r2, c1).Value = "Debut de shift"
+        wsPlan.Cells(r2, c2).Value = "Fin de shift"
+    Next dayIndex
+
+    wsPlan.Cells(r2, 1).Value = "Zones"
+    wsPlan.Cells(r2, 2).Value = roleLabel
+    wsPlan.Cells(r2, 17).Value = "OFF"
+    wsPlan.Cells(r2, 18).Value = "NB heures planifiees"
+    wsPlan.Cells(r2, 19).Value = "TT"
+    wsPlan.Cells(r2, 20).Value = "Pause dejeuner"
+    wsPlan.Cells(r2, 21).Value = "Commentaires"
+
+    With wsPlan.Range(wsPlan.Cells(r2, 1), wsPlan.Cells(r2, 21))
+        .Interior.Color = RGB(217, 226, 243)
+        .Font.Bold = True
+        .HorizontalAlignment = xlCenter
+    End With
+
+    WriteSectionHeader = r2 + 1
+End Function
+
+'--------------------------------------------------------------------
+' Tableau de reference du cycle de rotation EN COURS (dynamique, reflete
+' la feuille ParamRotation), avec le slot de la semaine en surbrillance.
+'--------------------------------------------------------------------
+Sub WriteShiftReferenceTable(wsPlan As Worksheet, atRow As Long, rotationTable As Object, _
+                              cycleLength As Long, weekIndexInCycle As Long)
+    With wsPlan
+        .Range(.Cells(atRow, 1), .Cells(atRow, 7)).Merge
+        .Cells(atRow, 1).Value = "Cycle de rotation (" & cycleLength & " semaines) - semaine " & _
+                                  (weekIndexInCycle + 1) & "/" & cycleLength & " du cycle"
+        .Cells(atRow, 1).Interior.Color = RGB(31, 73, 125)
+        .Cells(atRow, 1).Font.Color = RGB(255, 255, 255)
+        .Cells(atRow, 1).Font.Bold = True
+        .Cells(atRow, 1).HorizontalAlignment = xlCenter
+
+        Dim hdrRow As Long
+        hdrRow = atRow + 1
+        .Cells(hdrRow, 1).Value = "Slot"
+        .Cells(hdrRow, 2).Value = "Shift"
+        .Cells(hdrRow, 3).Value = "Pause"
+        .Cells(hdrRow, 4).Value = "Jour reduit"
+        .Cells(hdrRow, 5).Value = "Fin (reduit)"
+        With .Range(.Cells(hdrRow, 1), .Cells(hdrRow, 5))
+            .Interior.Color = RGB(217, 226, 243)
+            .Font.Bold = True
+            .HorizontalAlignment = xlCenter
+        End With
+
+        Dim s As Long
+        For s = 0 To cycleLength - 1
+            Dim rowData As Variant
+            rowData = rotationTable(CStr(s))
+            Dim rr As Long
+            rr = hdrRow + 1 + s
+            .Cells(rr, 1).Value = s
+            .Cells(rr, 2).Value = Format(TimeSerial(rowData(0), 0, 0), "hh:mm") & " - " & _
+                                   Format(TimeSerial(rowData(1), 0, 0), "hh:mm")
+            .Cells(rr, 3).Value = Format(rowData(2), "hh:mm") & " - " & Format(rowData(3), "hh:mm")
+            .Cells(rr, 4).Value = IIf(rowData(4) = "", "-", rowData(4))
+            .Cells(rr, 5).Value = IIf(rowData(4) = "", "-", Format(TimeSerial(rowData(5), 0, 0), "hh:mm"))
+            .Range(.Cells(rr, 1), .Cells(rr, 5)).HorizontalAlignment = xlCenter
+            If s = weekIndexInCycle Then
+                .Range(.Cells(rr, 1), .Cells(rr, 5)).Interior.Color = RGB(198, 224, 180)
+                .Range(.Cells(rr, 1), .Cells(rr, 5)).Font.Bold = True
+            End If
+        Next s
+    End With
+End Sub
+
+'--------------------------------------------------------------------
+' Construit un dictionnaire {en-tete normalise -> numero de colonne}
+' en lisant la ligne 1 de la feuille BDD.
+'--------------------------------------------------------------------
+Function GetHeaderMap(wsBDD As Worksheet) As Object
+    Dim dict As Object
+    Set dict = CreateObject("Scripting.Dictionary")
+
+    Dim lastCol As Long, c As Long
+    lastCol = wsBDD.Cells(1, wsBDD.Columns.Count).End(xlToLeft).Column
+
+    For c = 1 To lastCol
+        Dim key As String
+        key = NormalizeHeader(CStr(wsBDD.Cells(1, c).Value))
+        If key <> "" And Not dict.Exists(key) Then
+            dict.Add key, c
+        End If
+    Next c
+
+    Set GetHeaderMap = dict
+End Function
+
+Function GetCol(headers As Object, ByVal key As String) As Long
+    If headers.Exists(key) Then
+        GetCol = headers(key)
+    Else
+        Err.Raise vbObjectError + 1, , "Colonne introuvable dans la BDD pour la cle : " & key
+    End If
+End Function
+
+'--------------------------------------------------------------------
+' Normalise un en-tete : majuscules, sans accents, sans espaces/points/apostrophes
+'--------------------------------------------------------------------
+Function NormalizeHeader(ByVal s As String) As String
+    Dim r As String
+    r = UCase(Trim(s))
+    r = Replace(r, ChrW(233), "E"): r = Replace(r, ChrW(232), "E"): r = Replace(r, ChrW(234), "E"): r = Replace(r, ChrW(235), "E")
+    r = Replace(r, ChrW(224), "A"): r = Replace(r, ChrW(226), "A")
+    r = Replace(r, ChrW(244), "O")
+    r = Replace(r, ChrW(238), "I"): r = Replace(r, ChrW(239), "I")
+    r = Replace(r, ChrW(249), "U"): r = Replace(r, ChrW(251), "U")
+    r = Replace(r, ChrW(231), "C")
+    r = Replace(r, ".", "")
+    r = Replace(r, "'", "")
+    r = Replace(r, "-", "")
+    r = Replace(r, " ", "")
+    NormalizeHeader = r
+End Function

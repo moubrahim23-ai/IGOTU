@@ -1,0 +1,62 @@
+# Sélectionner le fichier Excel
+Add-Type -AssemblyName System.Windows.Forms
+
+$dialog = New-Object System.Windows.Forms.OpenFileDialog
+$dialog.Filter = "Fichiers Excel (*.xlsx)|*.xlsx"
+$dialog.Title = "Sélectionner le fichier Excel"
+
+if ($dialog.ShowDialog() -eq "OK") {
+
+    $fichierExcel = $dialog.FileName
+    $fichierJSON = [System.IO.Path]::ChangeExtension($fichierExcel, ".json")
+
+    # Ouvrir Excel
+    $excel = New-Object -ComObject Excel.Application
+    $excel.Visible = $false
+
+    $classeur = $excel.Workbooks.Open($fichierExcel)
+    $feuille = $classeur.Worksheets.Item(1)
+
+    $plage = $feuille.UsedRange
+
+    # Première ligne = noms des colonnes
+    $colonnes = @()
+
+    for ($col = 1; $col -le $plage.Columns.Count; $col++) {
+        $colonnes += $feuille.Cells.Item(1, $col).Text
+    }
+
+    # Construction des données
+    $donnees = @()
+
+    for ($ligne = 2; $ligne -le $plage.Rows.Count; $ligne++) {
+
+        $objet = [ordered]@{}
+
+        for ($col = 1; $col -le $plage.Columns.Count; $col++) {
+
+            $nomColonne = $colonnes[$col - 1]
+            $valeur = $feuille.Cells.Item($ligne, $col).Text
+
+            $objet[$nomColonne] = $valeur
+        }
+
+        $donnees += [PSCustomObject]$objet
+    }
+
+    # Export JSON
+    $donnees |
+        ConvertTo-Json -Depth 10 |
+        Set-Content -Path $fichierJSON -Encoding UTF8
+
+    # Fermeture Excel
+    $classeur.Close($false)
+    $excel.Quit()
+
+    [System.Runtime.InteropServices.Marshal]::ReleaseComObject($feuille) | Out-Null
+    [System.Runtime.InteropServices.Marshal]::ReleaseComObject($classeur) | Out-Null
+    [System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) | Out-Null
+
+    Write-Host "EXPORT TERMINÉ"
+    Write-Host "JSON créé :" $fichierJSON
+}

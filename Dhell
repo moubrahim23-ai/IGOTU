@@ -1,0 +1,9 @@
+Write-Host "=== TEST POWERSHELL ISE ===" -ForegroundColor Cyan
+
+Write-Host "Version PowerShell :" $PSVersionTable.PSVersion
+Write-Host "Utilisateur :" $env:USERNAME
+Write-Host "Ordinateur :" $env:COMPUTERNAME
+Write-Host "Dossier utilisateur :" $env:USERPROFILE
+
+Write-Host "`nExecution Policy :" -ForegroundColor Yellow
+Get-ExecutionPolicy -List

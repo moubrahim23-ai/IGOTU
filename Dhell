@@ -1,1 +1,2 @@
-function StatusOf($p){foreach($x in @('A TRAITER','EN COURS','NON CONFORME','TRAITES')){if(($p -split '\\') -contains $x){return ($x -replace ' ','_')}}return ''}
+cd "$env:USERPROFILE\Desktop\ACCESSIBILITE_PDF_V1.1\accessibilite_v1\powershell"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\server.ps1" -TestMode

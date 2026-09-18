@@ -1,15 +1,1 @@
-$Dossier = "\\serveur\partage\ACCESSIBILITE"
-
-Write-Host "=== TEST DOSSIER PARTAGE ===" -ForegroundColor Cyan
-
-if (Test-Path $Dossier) {
-
-    Write-Host "[OK] Dossier accessible" -ForegroundColor Green
-
-    Get-ChildItem $Dossier |
-        Select-Object -First 10 Name, Extension, LastWriteTime
-
-} else {
-
-    Write-Host "[ECHEC] Dossier inaccessible" -ForegroundColor Red
-}
+function StatusOf($p){foreach($x in @('A TRAITER','EN COURS','NON CONFORME','TRAITES')){if(($p -split '\\') -contains $x){return ($x -replace ' ','_')}}return ''}

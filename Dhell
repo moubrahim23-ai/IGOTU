@@ -1,9 +1,18 @@
-Write-Host "=== TEST POWERSHELL ISE ===" -ForegroundColor Cyan
+Write-Host "=== TEST EXCEL ===" -ForegroundColor Cyan
 
-Write-Host "Version PowerShell :" $PSVersionTable.PSVersion
-Write-Host "Utilisateur :" $env:USERNAME
-Write-Host "Ordinateur :" $env:COMPUTERNAME
-Write-Host "Dossier utilisateur :" $env:USERPROFILE
+try {
+    $Excel = New-Object -ComObject Excel.Application
 
-Write-Host "`nExecution Policy :" -ForegroundColor Yellow
-Get-ExecutionPolicy -List
+    Write-Host "[OK] PowerShell peut piloter Excel" -ForegroundColor Green
+    Write-Host "Version Excel :" $Excel.Version
+
+    $Excel.Quit()
+
+    [System.Runtime.InteropServices.Marshal]::ReleaseComObject($Excel) | Out-Null
+    Remove-Variable Excel
+
+} catch {
+
+    Write-Host "[ECHEC] PowerShell ne peut pas piloter Excel" -ForegroundColor Red
+    Write-Host $_.Exception.Message
+}

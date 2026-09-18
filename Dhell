@@ -1,18 +1,15 @@
-Write-Host "=== TEST EXCEL ===" -ForegroundColor Cyan
+$Dossier = "\\serveur\partage\ACCESSIBILITE"
 
-try {
-    $Excel = New-Object -ComObject Excel.Application
+Write-Host "=== TEST DOSSIER PARTAGE ===" -ForegroundColor Cyan
 
-    Write-Host "[OK] PowerShell peut piloter Excel" -ForegroundColor Green
-    Write-Host "Version Excel :" $Excel.Version
+if (Test-Path $Dossier) {
 
-    $Excel.Quit()
+    Write-Host "[OK] Dossier accessible" -ForegroundColor Green
 
-    [System.Runtime.InteropServices.Marshal]::ReleaseComObject($Excel) | Out-Null
-    Remove-Variable Excel
+    Get-ChildItem $Dossier |
+        Select-Object -First 10 Name, Extension, LastWriteTime
 
-} catch {
+} else {
 
-    Write-Host "[ECHEC] PowerShell ne peut pas piloter Excel" -ForegroundColor Red
-    Write-Host $_.Exception.Message
+    Write-Host "[ECHEC] Dossier inaccessible" -ForegroundColor Red
 }

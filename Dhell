@@ -1,1 +1,1 @@
-cd "$env:USERPROFILE\Desktop\ACCESSIBILITE_PDF_V1.1_CORRIGE\accessibilite_v1\powershell"
+fetch('/api/documents').then(r=>r.json()).then(x=>console.log(x))

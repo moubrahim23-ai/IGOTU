@@ -1,1 +1,1 @@
-Select-String -Path "$env:USERPROFILE\Desktop\ACCESSIBILITE_PDF_V1.1\accessibilite_v1\powershell\server.ps1" -Pattern '\$HistoryPath='
+Get-Item "$env:USERPROFILE\Desktop\ACCESSIBILITE_PDF_V1.1\accessibilite_v1\data\test_history.csv" | Select-Object FullName,Length,LastWriteTime

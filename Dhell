@@ -1,1 +1,14 @@
-Select-String -Path .\server.ps1 -Pattern "function Send" | ForEach-Object { $_.Line }
+else {
+    if ($null -eq $obj) {
+        $body = ''
+    }
+    else {
+        $body = [string]$obj
+    }
+}
+
+if ($null -eq $body) {
+    $body = ''
+}
+
+$bytes = [Text.Encoding]::UTF8.GetBytes([string]$body)

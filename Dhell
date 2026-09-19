@@ -1,14 +1,1 @@
-else {
-    if ($null -eq $obj) {
-        $body = ''
-    }
-    else {
-        $body = [string]$obj
-    }
-}
-
-if ($null -eq $body) {
-    $body = ''
-}
-
-$bytes = [Text.Encoding]::UTF8.GetBytes([string]$body)
+Get-NetTCPConnection -LocalPort 8765 -State Listen | Select-Object LocalAddress,LocalPort,OwningProcess

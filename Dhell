@@ -1,1 +1,1 @@
-Select-String -Path "$env:USERPROFILE\Desktop\ACCESSIBILITE_PDF_V1.1_CORRIGE\accessibilite_v1\powershell\server.ps1" -Pattern "/api/history" | ForEach-Object { $_.Line }
+cd "$env:USERPROFILE\Desktop\ACCESSIBILITE_PDF_V1.1_CORRIGE\accessibilite_v1\powershell"

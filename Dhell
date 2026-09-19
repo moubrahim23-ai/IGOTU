@@ -1,1 +1,1 @@
-Get-NetTCPConnection -LocalPort 8765 -State Listen | Select-Object LocalAddress,LocalPort,OwningProcess
+Select-String -Path "$env:USERPROFILE\Desktop\ACCESSIBILITE_PDF_V1.1\accessibilite_v1\powershell\server.ps1" -Pattern "api/history" -Context 5,20

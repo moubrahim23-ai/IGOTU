@@ -1,2 +1,1 @@
-cd "$env:USERPROFILE\Desktop\ACCESSIBILITE_PDF_V1.1\accessibilite_v1\powershell"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\server.ps1" -TestMode
+Select-String -Path .\server.ps1 -Pattern "function Send" | ForEach-Object { $_.Line }

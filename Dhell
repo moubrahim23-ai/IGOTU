@@ -1,1 +1,1 @@
-Import-Csv "$env:USERPROFILE\Desktop\ACCESSIBILITE_PDF_V1.1\accessibilite_v1\data\test_history.csv" -Delimiter ';' | Format-List *
+Get-Content "$env:USERPROFILE\Desktop\ACCESSIBILITE_PDF_V1.1\accessibilite_v1\data\test_history.csv"

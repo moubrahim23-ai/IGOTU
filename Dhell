@@ -1,1 +1,1 @@
-Get-Content "$env:USERPROFILE\Desktop\ACCESSIBILITE_PDF_V1.1\accessibilite_v1\data\test_history.csv"
+$rows=@(); $body=$rows | ConvertTo-Json -Depth 10 -Compress; "BODY=[$body]"; "NULL=$($null -eq $body)"

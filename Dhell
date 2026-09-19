@@ -1,1 +1,10 @@
-Select-String -Path "$env:USERPROFILE\Desktop\ACCESSIBILITE_PDF_V1.1\accessibilite_v1\powershell\server.ps1" -Pattern "function Send" | ForEach-Object { $_.Line }
+if($type-eq'application/json'){
+    if($null -eq $obj -or @($obj).Count -eq 0){
+        $body='[]'
+    }else{
+        $body=$obj | ConvertTo-Json -Depth 10 -Compress
+    }
+}else{
+    $body=[string]$obj
+}
+$bytes=[Text.Encoding]::UTF8.GetBytes([string]$body)

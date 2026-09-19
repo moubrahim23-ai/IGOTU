@@ -1,10 +1,2 @@
-if($type-eq'application/json'){
-    if($null -eq $obj -or @($obj).Count -eq 0){
-        $body='[]'
-    }else{
-        $body=$obj | ConvertTo-Json -Depth 10 -Compress
-    }
-}else{
-    $body=[string]$obj
-}
-$bytes=[Text.Encoding]::UTF8.GetBytes([string]$body)
+$r.StatusCode
+$r.Content

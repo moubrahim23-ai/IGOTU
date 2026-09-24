@@ -1,0 +1,317 @@
+[
+    {
+        "id":  "deff7686-e597-4336-989c-05606b14f4ed",
+        "datePriseEnCharge":  "2026-09-23T14:34:25.6676412+02:00",
+        "collaborateur":  "OUBRAHMO",
+        "validationPar":  null,
+        "dateValidation":  null,
+        "type":  "Avis de décès",
+        "origine":  "Front",
+        "titre":  "DNA",
+        "numeroOrdre":  "32112",
+        "client":  "Dupont",
+        "numeroClient":  "123456",
+        "commentaire":  "ok",
+        "dateFin":  "2026-09-23T14:34:28.7274454+02:00",
+        "dmtSecondes":  3,
+        "dmt":  "00:00:03",
+        "statut":  "Termine",
+        "journal":  [
+                        {
+                            "date":  "2026-09-23T14:34:25.6919510+02:00",
+                            "collaborateur":  "OUBRAHMO",
+                            "action":  "Creation",
+                            "details":  "Traitement lance."
+                        },
+                        {
+                            "date":  "2026-09-23T14:34:28.7775266+02:00",
+                            "collaborateur":  "OUBRAHMO",
+                            "action":  "Cloture",
+                            "details":  "Traitement termine."
+                        }
+                    ],
+        "revision":  2
+    },
+    {
+        "id":  "2f0cdfbd-0daf-4eed-be8e-34dcbedf6fe1",
+        "type":  "",
+        "titre":  "",
+        "origine":  "Back",
+        "numeroOrdre":  "",
+        "client":  "HAMDANI Mohamed [EIDS]",
+        "numeroClient":  "",
+        "datePriseEnCharge":  "2026-09-23T14:37:17.4864758+02:00",
+        "dmtSecondes":  null,
+        "dmt":  null,
+        "collaborateur":  "OUBRAHMO",
+        "validationPar":  null,
+        "dateValidation":  null,
+        "revision":  1,
+        "emailEntryId":  "00000000AE6085D1A3952C4C91262BBF560E5FA907000E67FE42F64F874A9DC61B35D6B846D900024B2A283D00000E67FE42F64F874A9DC61B35D6B846D90003ED489F830000",
+        "emailStoreId":  "0000000038A1BB1005E5101AA1BB08002B2A56C20000454D534D44422E444C4C00000000000000001B55FA20AA6611CD9BC800AA002FC45A0C0000006D6F68616D6D65642E6F7562726168696D4065787465726E652E652D692E636F6D002F6F3D434D2F6F753D45786368616E67652041646D696E6973747261746976652047726F7570202846594449424F484632335350444C54292F636E3D526563697069656E74732F636E3D39303337376465376361376234396130626438636164303537613737363963392D4F5542524148494D204D6F68616D6D65642028505200E94632F45600000002000000100000006D006F00680061006D006D00650064002E006F007500620072006100680069006D004000650078007400650072006E0065002E0065002D0069002E0063006F006D0000000000",
+        "emailSujet":  "Création des dossiers CM CIC - DIRCOM",
+        "emailExpediteur":  "HAMDANI Mohamed [EIDS]",
+        "emailMailboxName":  "mohammed.oubrahim@externe.e-i.com",
+        "emailSourceFolderName":  "mohammed.oubrahim@externe.e-i.com / Inbox / Accessibilité",
+        "statut":  "Libere",
+        "dateFin":  "2026-09-23T14:37:59.6393048+02:00",
+        "commentaire":  "Prise en charge liberee.",
+        "journal":  [
+                        {
+                            "date":  "2026-09-23T14:37:17.5125717+02:00",
+                            "collaborateur":  "OUBRAHMO",
+                            "action":  "Prise en charge e-mail",
+                            "details":  "Création des dossiers CM CIC - DIRCOM"
+                        },
+                        {
+                            "date":  "2026-09-23T14:37:59.6569505+02:00",
+                            "collaborateur":  "OUBRAHMO",
+                            "action":  "Liberation e-mail",
+                            "details":  "Création des dossiers CM CIC - DIRCOM"
+                        }
+                    ]
+    },
+    {
+        "id":  "abb0ff46-af9e-448e-9992-697831f86979",
+        "datePriseEnCharge":  "2026-09-23T14:38:20.8918641+02:00",
+        "collaborateur":  "OUBRAHMO",
+        "emailEntryId":  "00000000AE6085D1A3952C4C91262BBF560E5FA907000E67FE42F64F874A9DC61B35D6B846D900024B2A283D00000E67FE42F64F874A9DC61B35D6B846D90003ED489F830000",
+        "emailStoreId":  "0000000038A1BB1005E5101AA1BB08002B2A56C20000454D534D44422E444C4C00000000000000001B55FA20AA6611CD9BC800AA002FC45A0C0000006D6F68616D6D65642E6F7562726168696D4065787465726E652E652D692E636F6D002F6F3D434D2F6F753D45786368616E67652041646D696E6973747261746976652047726F7570202846594449424F484632335350444C54292F636E3D526563697069656E74732F636E3D39303337376465376361376234396130626438636164303537613737363963392D4F5542524148494D204D6F68616D6D65642028505200E94632F45600000002000000100000006D006F00680061006D006D00650064002E006F007500620072006100680069006D004000650078007400650072006E0065002E0065002D0069002E0063006F006D0000000000",
+        "emailSujet":  "Création des dossiers CM CIC - DIRCOM",
+        "emailExpediteur":  "HAMDANI Mohamed [EIDS]",
+        "emailMailboxName":  "mohammed.oubrahim@externe.e-i.com",
+        "emailSourceFolderName":  "mohammed.oubrahim@externe.e-i.com / Inbox / Accessibilité",
+        "origine":  "Back",
+        "titre":  "DNA",
+        "numeroOrdre":  "58749545",
+        "client":  "HAMDANI Mohamed",
+        "numeroClient":  "875742574",
+        "commentaire":  "ok",
+        "dateFin":  "2026-09-23T14:39:16.1940348+02:00",
+        "dmtSecondes":  55,
+        "dmt":  "00:00:55",
+        "statut":  "Termine",
+        "type":  "Hommage",
+        "validationPar":  null,
+        "dateValidation":  null,
+        "journal":  [
+                        {
+                            "date":  "2026-09-23T14:38:20.8948860+02:00",
+                            "collaborateur":  "OUBRAHMO",
+                            "action":  "Prise en charge e-mail",
+                            "details":  "Création des dossiers CM CIC - DIRCOM"
+                        },
+                        {
+                            "date":  "2026-09-23T14:39:16.3566819+02:00",
+                            "collaborateur":  "OUBRAHMO",
+                            "action":  "Cloture",
+                            "details":  "Traitement termine."
+                        },
+                        {
+                            "date":  "2026-09-23T17:30:39.1905303+02:00",
+                            "collaborateur":  "HAMDANMO",
+                            "action":  "Validation",
+                            "details":  "Traitement valide."
+                        },
+                        {
+                            "date":  "2026-09-23T17:30:48.0747658+02:00",
+                            "collaborateur":  "HAMDANMO",
+                            "action":  "Modification",
+                            "details":  "type : [Avis de décès] -\u003e [Hommage]"
+                        }
+                    ],
+        "revision":  4
+    },
+    {
+        "id":  "d682e398-627c-4e62-8203-d861ca100551",
+        "type":  "",
+        "titre":  "",
+        "origine":  "Back",
+        "numeroOrdre":  "",
+        "client":  "SPIZZO Isabelle",
+        "numeroClient":  "",
+        "datePriseEnCharge":  "2026-09-23T16:53:39.3671192+02:00",
+        "dmtSecondes":  null,
+        "dmt":  null,
+        "collaborateur":  "HAMDANMO",
+        "validationPar":  null,
+        "dateValidation":  null,
+        "revision":  1,
+        "emailEntryId":  "000000000B168FE9CD960848A7DD59D2424F058807000ED3957B51C73C4C965BB5E14950D5BB00000000010C00000ED3957B51C73C4C965BB5E14950D5BB0000EBF82CDE0000",
+        "emailStoreId":  "0000000038A1BB1005E5101AA1BB08002B2A56C20000454D534D44422E444C4C00000000000000001B55FA20AA6611CD9BC800AA002FC45A0C0000006D6F68616D65642E68616D64616E6940652D692E636F6D002F6F3D434D2F6F753D45786368616E67652041646D696E6973747261746976652047726F7570202846594449424F484632335350444C54292F636E3D526563697069656E74732F636E3D64326130383262353933663334666433383035313162393763313138636435372D48414D44414E49204D6F68616D6564205B4549445300E94632F44200000002000000100000006D006F00680061006D00650064002E00680061006D00640061006E006900400065002D0069002E0063006F006D0000000000",
+        "emailSujet":  "RE: Création des dossiers CM CIC - DIRCOM",
+        "emailExpediteur":  "SPIZZO Isabelle",
+        "emailMailboxName":  "mohamed.hamdani@e-i.com",
+        "emailSourceFolderName":  "mohamed.hamdani@e-i.com / Inbox",
+        "statut":  "Libere",
+        "dateFin":  "2026-09-23T17:02:26.4176238+02:00",
+        "commentaire":  "Prise en charge liberee.",
+        "journal":  [
+                        {
+                            "date":  "2026-09-23T16:53:39.3751623+02:00",
+                            "collaborateur":  "HAMDANMO",
+                            "action":  "Prise en charge e-mail",
+                            "details":  "RE: Création des dossiers CM CIC - DIRCOM"
+                        },
+                        {
+                            "date":  "2026-09-23T17:02:26.4254495+02:00",
+                            "collaborateur":  "HAMDANMO",
+                            "action":  "Liberation e-mail",
+                            "details":  "RE: Création des dossiers CM CIC - DIRCOM"
+                        }
+                    ]
+    },
+    {
+        "id":  "d5a3933a-5636-4229-8318-6a54f3870641",
+        "origine":  "Back",
+        "client":  "SPIZZO Isabelle",
+        "datePriseEnCharge":  "2026-09-23T17:04:08.2249651+02:00",
+        "dmtSecondes":  null,
+        "dmt":  null,
+        "collaborateur":  "HAMDANMO",
+        "emailEntryId":  "000000000B168FE9CD960848A7DD59D2424F058807000ED3957B51C73C4C965BB5E14950D5BB00000000010C00000ED3957B51C73C4C965BB5E14950D5BB0000EBF82CDE0000",
+        "emailStoreId":  "0000000038A1BB1005E5101AA1BB08002B2A56C20000454D534D44422E444C4C00000000000000001B55FA20AA6611CD9BC800AA002FC45A0C0000006D6F68616D65642E68616D64616E6940652D692E636F6D002F6F3D434D2F6F753D45786368616E67652041646D696E6973747261746976652047726F7570202846594449424F484632335350444C54292F636E3D526563697069656E74732F636E3D64326130383262353933663334666433383035313162393763313138636435372D48414D44414E49204D6F68616D6564205B4549445300E94632F44200000002000000100000006D006F00680061006D00650064002E00680061006D00640061006E006900400065002D0069002E0063006F006D0000000000",
+        "emailSujet":  "RE: Création des dossiers CM CIC - DIRCOM",
+        "emailExpediteur":  "SPIZZO Isabelle",
+        "emailMailboxName":  "mohamed.hamdani@e-i.com",
+        "emailSourceFolderName":  "mohamed.hamdani@e-i.com / Inbox",
+        "statut":  "Libere",
+        "dateFin":  "2026-09-23T17:05:27.0034769+02:00",
+        "commentaire":  "Prise en charge liberee.",
+        "type":  "Avis de Messe",
+        "titre":  "LDL",
+        "numeroOrdre":  "45678",
+        "numeroClient":  "1237865",
+        "validationPar":  "HAMDANMO",
+        "dateValidation":  "2026-09-23T17:30:30.3786443+02:00",
+        "journal":  [
+                        {
+                            "date":  "2026-09-23T17:04:08.2315635+02:00",
+                            "collaborateur":  "HAMDANMO",
+                            "action":  "Prise en charge e-mail",
+                            "details":  "RE: Création des dossiers CM CIC - DIRCOM"
+                        },
+                        {
+                            "date":  "2026-09-23T17:05:27.0075497+02:00",
+                            "collaborateur":  "HAMDANMO",
+                            "action":  "Liberation e-mail",
+                            "details":  "RE: Création des dossiers CM CIC - DIRCOM"
+                        },
+                        {
+                            "date":  "2026-09-23T17:30:28.9720909+02:00",
+                            "collaborateur":  "HAMDANMO",
+                            "action":  "Modification",
+                            "details":  "type : [] -\u003e [Avis de Messe]; titre : [] -\u003e [LDL]; numeroOrdre : [] -\u003e [45678]; numeroClient : [] -\u003e [1237865]"
+                        },
+                        {
+                            "date":  "2026-09-23T17:30:30.3786443+02:00",
+                            "collaborateur":  "HAMDANMO",
+                            "action":  "Validation",
+                            "details":  "Traitement valide."
+                        }
+                    ],
+        "revision":  3
+    },
+    {
+        "id":  "a0bbddbd-e3a5-430b-acd9-c24f6739adc7",
+        "origine":  "Back",
+        "client":  "JKAOUA Ikrame [EIDS]",
+        "datePriseEnCharge":  "2026-09-23T16:24:23.0417384+01:00",
+        "dmtSecondes":  null,
+        "dmt":  null,
+        "collaborateur":  "RMAIDIIM",
+        "emailEntryId":  "0000000077305C6FA26B0D4FA62A81AA8292C8E9070093D534DEC999E748814C66ADF5A18B3300000000010C000093D534DEC999E748814C66ADF5A18B330000F3AB71240000",
+        "emailStoreId":  "0000000038A1BB1005E5101AA1BB08002B2A56C20000454D534D44422E444C4C00000000000000001B55FA20AA6611CD9BC800AA002FC45A0C000000696D61642E726D6169646940652D692E636F6D002F6F3D434D2F6F753D45786368616E67652041646D696E6973747261746976652047726F7570202846594449424F484632335350444C54292F636E3D526563697069656E74732F636E3D30303835643133643862313034326664383763613338383561663232346138362D524D4149444920496D6164205B454944535D00E94632F43A000000020000001000000069006D00610064002E0072006D006100690064006900400065002D0069002E0063006F006D0000000000",
+        "emailSujet":  "Planning transport du personnel_24-09-2026",
+        "emailExpediteur":  "JKAOUA Ikrame [EIDS]",
+        "emailMailboxName":  "imad.rmaidi@e-i.com",
+        "emailSourceFolderName":  "imad.rmaidi@e-i.com / Inbox",
+        "statut":  "Libere",
+        "dateFin":  "2026-09-23T16:24:36.8138176+01:00",
+        "commentaire":  "Prise en charge liberee.",
+        "type":  "Remerciements",
+        "titre":  "ALS",
+        "numeroOrdre":  "24325",
+        "numeroClient":  "5454",
+        "validationPar":  "OUBRAHMO",
+        "dateValidation":  "2026-09-23T17:29:58.4887716+02:00",
+        "journal":  [
+                        {
+                            "date":  "2026-09-23T16:24:23.1114196+01:00",
+                            "collaborateur":  "RMAIDIIM",
+                            "action":  "Prise en charge e-mail",
+                            "details":  "Planning transport du personnel_24-09-2026"
+                        },
+                        {
+                            "date":  "2026-09-23T16:24:36.8248718+01:00",
+                            "collaborateur":  "RMAIDIIM",
+                            "action":  "Liberation e-mail",
+                            "details":  "Planning transport du personnel_24-09-2026"
+                        },
+                        {
+                            "date":  "2026-09-23T17:29:54.9650704+02:00",
+                            "collaborateur":  "OUBRAHMO",
+                            "action":  "Modification",
+                            "details":  "type : [] -\u003e [Remerciements]; titre : [] -\u003e [ALS]; numeroOrdre : [] -\u003e [24325]; numeroClient : [] -\u003e [5454]"
+                        },
+                        {
+                            "date":  "2026-09-23T17:29:58.4907716+02:00",
+                            "collaborateur":  "OUBRAHMO",
+                            "action":  "Validation",
+                            "details":  "Traitement valide."
+                        }
+                    ],
+        "revision":  3
+    },
+    {
+        "id":  "937981c6-8a5b-4bf7-8563-b2d41bf7d300",
+        "datePriseEnCharge":  "2026-09-23T16:25:19.6085320+01:00",
+        "collaborateur":  "RMAIDIIM",
+        "origine":  "Front",
+        "titre":  "JSL",
+        "numeroOrdre":  "25044",
+        "client":  "JKAOUA Ikrame [EIDS]",
+        "numeroClient":  "1154626",
+        "commentaire":  "ok",
+        "dateFin":  "2026-09-23T16:25:29.3151153+01:00",
+        "dmtSecondes":  9,
+        "dmt":  "00:00:09",
+        "statut":  "Termine",
+        "type":  "Hommage",
+        "validationPar":  "HAMDANMO",
+        "dateValidation":  "2026-09-23T17:31:17.7976767+02:00",
+        "journal":  [
+                        {
+                            "date":  "2026-09-23T16:25:19.6248326+01:00",
+                            "collaborateur":  "RMAIDIIM",
+                            "action":  "Creation",
+                            "details":  "Traitement lance."
+                        },
+                        {
+                            "date":  "2026-09-23T16:25:29.3793737+01:00",
+                            "collaborateur":  "RMAIDIIM",
+                            "action":  "Cloture",
+                            "details":  "Traitement termine."
+                        },
+                        {
+                            "date":  "2026-09-23T17:29:13.2767808+02:00",
+                            "collaborateur":  "OUBRAHMO",
+                            "action":  "Validation",
+                            "details":  "Traitement valide."
+                        },
+                        {
+                            "date":  "2026-09-23T17:31:14.5723329+02:00",
+                            "collaborateur":  "HAMDANMO",
+                            "action":  "Modification",
+                            "details":  "type : [Remerciements] -\u003e [Hommage]"
+                        },
+                        {
+                            "date":  "2026-09-23T17:31:17.7976767+02:00",
+                            "collaborateur":  "HAMDANMO",
+                            "action":  "Validation",
+                            "details":  "Traitement valide."
+                        }
+                    ],
+        "revision":  5
+    }
+]

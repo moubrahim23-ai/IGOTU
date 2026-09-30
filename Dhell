@@ -1,128 +1,150 @@
-Windows PowerShell
-Copyright (C) Microsoft Corporation. Tous droits réservés.
+PowerShell 7.6.3
+PS C:\Users\OUBRAHMO> Write-Host "`n========== TEST 2 : ENVIRONNEMENT =========="
 
-Installez la dernière version de PowerShell pour de nouvelles fonctionnalités et améliorations ! https://aka.ms/PSWindows
+========== TEST 2 : ENVIRONNEMENT ==========
+PS C:\Users\OUBRAHMO>
+PS C:\Users\OUBRAHMO> Write-Host "`n--- EXECUTION POLICY ---"
 
-PS C:\Users\OUBRAHMO> Write-Host "=== SYSTEME ==="
-=== SYSTEME ===
-PS C:\Users\OUBRAHMO> whoami
-cdm\oubrahmo
-PS C:\Users\OUBRAHMO> $PSVersionTable.PSVersion
+--- EXECUTION POLICY ---
+PS C:\Users\OUBRAHMO> Get-ExecutionPolicy
+RemoteSigned
+PS C:\Users\OUBRAHMO> Get-ExecutionPolicy -List
+
+        Scope ExecutionPolicy
+        ----- ---------------
+MachinePolicy       Undefined
+   UserPolicy       Undefined
+      Process       Undefined
+  CurrentUser       Undefined
+ LocalMachine    RemoteSigned
+
+PS C:\Users\OUBRAHMO>
+PS C:\Users\OUBRAHMO> Write-Host "`n--- .NET FRAMEWORK ---"
+
+--- .NET FRAMEWORK ---
+PS C:\Users\OUBRAHMO> try {
+>>     [System.Environment]::Version
+>>     Write-Host ".NET Framework utilisable : OUI"
+>> } catch {
+>>     Write-Host ".NET Framework utilisable : NON"
+>> }
 
 Major  Minor  Build  Revision
 -----  -----  -----  --------
-5      1      22621  7517
+10     0      9      -1
+.NET Framework utilisable : OUI
 
+PS C:\Users\OUBRAHMO>
+PS C:\Users\OUBRAHMO> Write-Host "`n--- HTTP LISTENER ---"
 
-PS C:\Users\OUBRAHMO> [Environment]::Is64BitOperatingSystem
+--- HTTP LISTENER ---
+PS C:\Users\OUBRAHMO> try {
+>>     $x = New-Object System.Net.HttpListener
+>>     Write-Host "HttpListener : OUI"
+>>     $x.Close()
+>> } catch {
+>>     Write-Host "HttpListener : NON"
+>>     Write-Host $_.Exception.Message
+>> }
+HttpListener : OUI
+PS C:\Users\OUBRAHMO>
+PS C:\Users\OUBRAHMO> Write-Host "`n--- FILESYSTEMWATCHER ---"
+
+--- FILESYSTEMWATCHER ---
+PS C:\Users\OUBRAHMO> try {
+>>     $w = New-Object System.IO.FileSystemWatcher
+>>     Write-Host "FileSystemWatcher : OUI"
+>>     $w.Dispose()
+>> } catch {
+>>     Write-Host "FileSystemWatcher : NON"
+>> }
+FileSystemWatcher : OUI
+PS C:\Users\OUBRAHMO>
+PS C:\Users\OUBRAHMO> Write-Host "`n--- SQLITE ---"
+
+--- SQLITE ---
+PS C:\Users\OUBRAHMO> Get-Command sqlite3 -ErrorAction SilentlyContinue
+PS C:\Users\OUBRAHMO> if (-not (Get-Command sqlite3 -ErrorAction SilentlyContinue)) {
+>>     Write-Host "SQLite CLI : NON"
+>> }
+SQLite CLI : NON
+PS C:\Users\OUBRAHMO>
+PS C:\Users\OUBRAHMO> Write-Host "`n--- CURL ---"
+
+--- CURL ---
+PS C:\Users\OUBRAHMO> curl.exe --version
+curl 8.21.0 (Windows) libcurl/8.21.0 Schannel zlib/1.3.2 WinIDN WinLDAP
+Release-Date: 2026-06-24
+Protocols: dict file ftp ftps gopher gophers http https imap imaps ipfs ipns ldap ldaps mqtt mqtts pop3 pop3s smtp smtps telnet tftp ws wss
+Features: alt-svc AsynchDNS HSTS HTTPS-proxy IDN IPv6 Kerberos Largefile libz SPNEGO SSL SSPI threadsafe Unicode UnixSockets
+PS C:\Users\OUBRAHMO>
+PS C:\Users\OUBRAHMO> Write-Host "`n--- WSCRIPT / CSCRIPT ---"
+
+--- WSCRIPT / CSCRIPT ---
+PS C:\Users\OUBRAHMO> where.exe wscript
+C:\Windows\System32\wscript.exe
+PS C:\Users\OUBRAHMO> where.exe cscript
+C:\Windows\System32\cscript.exe
+PS C:\Users\OUBRAHMO>
+PS C:\Users\OUBRAHMO> Write-Host "`n--- MSHTA ---"
+
+--- MSHTA ---
+PS C:\Users\OUBRAHMO> where.exe mshta
+C:\Windows\System32\mshta.exe
+PS C:\Users\OUBRAHMO>
+PS C:\Users\OUBRAHMO> Write-Host "`n--- EDGE ---"
+
+--- EDGE ---
+PS C:\Users\OUBRAHMO> where.exe msedge
+Information : impossible de trouver des fichiers pour le(s) modèle(s) spécifié(s).
+PS C:\Users\OUBRAHMO> Test-Path "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 True
+PS C:\Users\OUBRAHMO> Test-Path "C:\Program Files\Microsoft\Edge\Application\msedge.exe"
+False
 PS C:\Users\OUBRAHMO>
-PS C:\Users\OUBRAHMO> Write-Host "`n=== NODE.JS ==="
+PS C:\Users\OUBRAHMO> Write-Host "`n--- WEBVIEW2 ---"
 
-=== NODE.JS ===
-PS C:\Users\OUBRAHMO> node --version
-node : Le terme «node» n'est pas reconnu comme nom d'applet de commande, fonction, fichier de script ou programme
-exécutable. Vérifiez l'orthographe du nom, ou si un chemin d'accès existe, vérifiez que le chemin d'accès est correct
-et réessayez.
-Au caractère Ligne:1 : 1
-+ node --version
-+ ~~~~
-    + CategoryInfo          : ObjectNotFound: (node:String) [], CommandNotFoundException
-    + FullyQualifiedErrorId : CommandNotFoundException
-
-PS C:\Users\OUBRAHMO> npm --version
-npm : Le terme «npm» n'est pas reconnu comme nom d'applet de commande, fonction, fichier de script ou programme
-exécutable. Vérifiez l'orthographe du nom, ou si un chemin d'accès existe, vérifiez que le chemin d'accès est correct
-et réessayez.
-Au caractère Ligne:1 : 1
-+ npm --version
-+ ~~~
-    + CategoryInfo          : ObjectNotFound: (npm:String) [], CommandNotFoundException
-    + FullyQualifiedErrorId : CommandNotFoundException
-
-PS C:\Users\OUBRAHMO>
-PS C:\Users\OUBRAHMO> Write-Host "`n=== PYTHON ==="
-
-=== PYTHON ===
-PS C:\Users\OUBRAHMO> python --version
-Python est introuvable ; exÚcutez sans arguments Ó installer Ó partir du Microsoft Store ou dÚsactivez ce raccourci dans ParamÞtres > Applications > paramÞtres d
-PS C:\Users\OUBRAHMO> py --version
-py : Le terme «py» n'est pas reconnu comme nom d'applet de commande, fonction, fichier de script ou programme
-exécutable. Vérifiez l'orthographe du nom, ou si un chemin d'accès existe, vérifiez que le chemin d'accès est correct
-et réessayez.
-Au caractère Ligne:1 : 1
-+ py --version
-+ ~~
-    + CategoryInfo          : ObjectNotFound: (py:String) [], CommandNotFoundException
-    + FullyQualifiedErrorId : CommandNotFoundException
-
-PS C:\Users\OUBRAHMO>
-PS C:\Users\OUBRAHMO> Write-Host "`n=== DOTNET ==="
-
-=== DOTNET ===
-PS C:\Users\OUBRAHMO> dotnet --version
-The command could not be loaded, possibly because:
-  * You intended to execute a .NET application:
-      The application '--version' does not exist or is not a managed .dll or .exe.
-  * You intended to execute a .NET SDK command:
-      No .NET SDKs were found.
-
-Download a .NET SDK:
-https://aka.ms/dotnet/download
-
-Learn about SDK resolution:
-https://aka.ms/dotnet/sdk-not-found
-PS C:\Users\OUBRAHMO>
-PS C:\Users\OUBRAHMO> Write-Host "`n=== GIT ==="
-
-=== GIT ===
-PS C:\Users\OUBRAHMO> git --version
-git : Le terme «git» n'est pas reconnu comme nom d'applet de commande, fonction, fichier de script ou programme
-exécutable. Vérifiez l'orthographe du nom, ou si un chemin d'accès existe, vérifiez que le chemin d'accès est correct
-et réessayez.
-Au caractère Ligne:1 : 1
-+ git --version
-+ ~~~
-    + CategoryInfo          : ObjectNotFound: (git:String) [], CommandNotFoundException
-    + FullyQualifiedErrorId : CommandNotFoundException
-
-PS C:\Users\OUBRAHMO>
-PS C:\Users\OUBRAHMO> Write-Host "`n=== IIS ==="
-
-=== IIS ===
-PS C:\Users\OUBRAHMO> Get-WindowsOptionalFeature -Online -FeatureName IIS-WebServerRole -ErrorAction SilentlyContinue | Select FeatureName,State
-Get-WindowsOptionalFeature : L’opération demandée nécessite une élévation.
-Au caractère Ligne:1 : 1
-+ Get-WindowsOptionalFeature -Online -FeatureName IIS-WebServerRole -Er ...
-+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (:) [Get-WindowsOptionalFeature], COMException
-    + FullyQualifiedErrorId : Microsoft.Dism.Commands.GetWindowsOptionalFeatureCommand
-
-PS C:\Users\OUBRAHMO>
-PS C:\Users\OUBRAHMO> Write-Host "`n=== EXCEL ==="
-
-=== EXCEL ===
-PS C:\Users\OUBRAHMO> try {
->>     $excel = New-Object -ComObject Excel.Application
->>     Write-Host "Excel COM : OK - Version" $excel.Version
->>     $excel.Quit()
->> } catch {
->>     Write-Host "Excel COM : NON"
+--- WEBVIEW2 ---
+PS C:\Users\OUBRAHMO> $wv = Get-ChildItem "C:\Program Files (x86)\Microsoft\EdgeWebView\Application" -ErrorAction SilentlyContinue
+PS C:\Users\OUBRAHMO> if ($wv) {
+>>     Write-Host "WebView2 : OUI"
+>>     $wv.Name
+>> } else {
+>>     Write-Host "WebView2 : NON ou emplacement différent"
 >> }
-Excel COM : OK - Version 16.0
+WebView2 : OUI
+141.0.3537.57
+SetupMetrics
 PS C:\Users\OUBRAHMO>
-PS C:\Users\OUBRAHMO> Write-Host "`n=== OUTLOOK ==="
+PS C:\Users\OUBRAHMO> Write-Host "`n--- COMPILATEUR C# WINDOWS ---"
 
-=== OUTLOOK ===
+--- COMPILATEUR C# WINDOWS ---
+PS C:\Users\OUBRAHMO> $csc1 = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+PS C:\Users\OUBRAHMO> $csc2 = "$env:WINDIR\Microsoft.NET\Framework\v4.0.30319\csc.exe"
+PS C:\Users\OUBRAHMO>
+PS C:\Users\OUBRAHMO> Write-Host "CSC 64 bits :" (Test-Path $csc1)
+CSC 64 bits : True
+PS C:\Users\OUBRAHMO> Write-Host "CSC 32 bits :" (Test-Path $csc2)
+CSC 32 bits : True
+PS C:\Users\OUBRAHMO>
+PS C:\Users\OUBRAHMO> Write-Host "`n--- WINDOWS FORMS ---"
+
+--- WINDOWS FORMS ---
 PS C:\Users\OUBRAHMO> try {
->>     $outlook = New-Object -ComObject Outlook.Application
->>     Write-Host "Outlook COM : OK"
+>>     Add-Type -AssemblyName System.Windows.Forms
+>>     Write-Host "Windows Forms : OUI"
 >> } catch {
->>     Write-Host "Outlook COM : NON"
+>>     Write-Host "Windows Forms : NON"
 >> }
-Outlook COM : OK
+Windows Forms : OUI
 PS C:\Users\OUBRAHMO>
-PS C:\Users\OUBRAHMO> Write-Host "`n=== EXECUTION POWERSHELL ==="
+PS C:\Users\OUBRAHMO> Write-Host "`n--- WPF ---"
 
-=== EXECUTION POWERSHELL ===
-PS C:\Users\OUBRAHMO> Get-ExecutionPolicy -List
+--- WPF ---
+PS C:\Users\OUBRAHMO> try {
+>>     Add-Type -AssemblyName PresentationFramework
+>>     Write-Host "WPF : OUI"
+>> } catch {
+>>     Write-Host "WPF : NON"
+>> }
+WPF : OUI

@@ -1,28 +1,78 @@
-$DP = "\\Uf11-a03\EIDS-EAA-PDF-STATIQUES\ACCESSIBILITE"
+$dir = "$env:TEMP\TestApplication"
+$cs  = "$dir\TestReseau.cs"
+$exe = "$dir\TestReseau.exe"
 
-Write-Host "=== TEST DP ==="
-Write-Host "Utilisateur :" ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name)
-Write-Host "DP :" $DP
+$code = @'
+using System;
+using System.IO;
+using System.Diagnostics;
+using System.Security.Principal;
+using System.Windows.Forms;
 
-Write-Host "`n--- ACCESSIBILITE ---"
-Write-Host "Existe :" (Test-Path $DP)
+class Program
+{
+    [STAThread]
+    static void Main()
+    {
+        string dp = @"\\Uf11-a03\EIDS-EAA-PDF-STATIQUES\ACCESSIBILITE";
 
-Write-Host "`n--- TEST LECTURE ---"
-$chrono = [Diagnostics.Stopwatch]::StartNew()
+        try
+        {
+            Stopwatch sw = Stopwatch.StartNew();
 
-try {
-    $items = @(Get-ChildItem -LiteralPath $DP -ErrorAction Stop)
-    $chrono.Stop()
+            string[] dossiers = Directory.GetDirectories(dp);
 
-    Write-Host "Lecture : OK"
-    Write-Host "Elements premier niveau :" $items.Count
-    Write-Host "Temps :" $chrono.ElapsedMilliseconds "ms"
+            sw.Stop();
+
+            string utilisateur =
+                WindowsIdentity.GetCurrent().Name;
+
+            string message =
+                "TEST C# -> DP RESEAU REUSSI\n\n" +
+                "Utilisateur : " + utilisateur + "\n\n" +
+                "DP accessible : " + Directory.Exists(dp) + "\n" +
+                "Dossiers premier niveau : " + dossiers.Length + "\n" +
+                "Temps de lecture : " + sw.ElapsedMilliseconds + " ms\n\n" +
+                "Exemples :\n";
+
+            int max = Math.Min(6, dossiers.Length);
+
+            for (int i = 0; i < max; i++)
+            {
+                message += "- " + Path.GetFileName(dossiers[i]) + "\n";
+            }
+
+            MessageBox.Show(
+                message,
+                "Diagnostic application C#",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information
+            );
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                ex.ToString(),
+                "ERREUR",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error
+            );
+        }
+    }
 }
-catch {
-    $chrono.Stop()
-    Write-Host "Lecture : ECHEC"
-    Write-Host $_.Exception.Message
-}
+'@
 
-Write-Host "`n--- APERCU ---"
-$items | Select-Object -First 10 Name, PSIsContainer, LastWriteTime
+Set-Content -Path $cs -Value $code -Encoding UTF8
+
+& "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" `
+ /target:winexe `
+ /reference:System.Windows.Forms.dll `
+ /reference:System.dll `
+ /out:$exe `
+ $cs
+
+Write-Host "Compilation :" (Test-Path $exe)
+
+if (Test-Path $exe) {
+    Start-Process $exe
+}

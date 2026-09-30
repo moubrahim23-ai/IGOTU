@@ -1,91 +1,36 @@
-$dir = "$env:TEMP\TestApplication"
-$cs  = "$dir\TestEcriture.cs"
-$exe = "$dir\TestEcriture.exe"
+Write-Host "=== RECHERCHE WEBVIEW2 .NET ==="
 
-$code = @'
-using System;
-using System.IO;
-using System.Security.Principal;
-using System.Windows.Forms;
+$paths = @(
+    "C:\Program Files (x86)\Microsoft\EdgeWebView",
+    "C:\Program Files\Microsoft\EdgeWebView",
+    "$env:LOCALAPPDATA\Microsoft",
+    "$env:ProgramFiles\Microsoft",
+    "${env:ProgramFiles(x86)}\Microsoft"
+)
 
-class Program
-{
-    [STAThread]
-    static void Main()
-    {
-        string dp = @"\\Uf11-a03\EIDS-EAA-PDF-STATIQUES\ACCESSIBILITE";
-        string testDir = Path.Combine(dp, "__TEST_APPLICATION_OUBRAHMO__");
-        string fichier1 = Path.Combine(testDir, "test.txt");
-        string fichier2 = Path.Combine(testDir, "test_renomme.txt");
+$dlls = @()
 
-        string resultat = "";
-
-        try
-        {
-            resultat += "Utilisateur : " +
-                WindowsIdentity.GetCurrent().Name + "\n\n";
-
-            Directory.CreateDirectory(testDir);
-            resultat += "1. Creation dossier : OK\n";
-
-            File.WriteAllText(
-                fichier1,
-                "Test application C# - " + DateTime.Now.ToString()
-            );
-            resultat += "2. Ecriture fichier : OK\n";
-
-            string contenu = File.ReadAllText(fichier1);
-            resultat += "3. Lecture fichier : OK\n";
-
-            File.Move(fichier1, fichier2);
-            resultat += "4. Renommage fichier : OK\n";
-
-            File.Delete(fichier2);
-            resultat += "5. Suppression fichier : OK\n";
-
-            Directory.Delete(testDir);
-            resultat += "6. Suppression dossier : OK\n";
-
-            resultat += "\nTEST COMPLET REUSSI";
-        }
-        catch (Exception ex)
-        {
-            resultat += "\n\nECHEC :\n" + ex.Message;
-
-            // Nettoyage de sécurité
-            try
-            {
-                if (File.Exists(fichier1))
-                    File.Delete(fichier1);
-
-                if (File.Exists(fichier2))
-                    File.Delete(fichier2);
-
-                if (Directory.Exists(testDir))
-                    Directory.Delete(testDir, true);
-            }
-            catch {}
-        }
-
-        MessageBox.Show(
-            resultat,
-            "Test droits réseau C#",
-            MessageBoxButtons.OK,
-            MessageBoxIcon.Information
-        );
+foreach ($p in $paths) {
+    if (Test-Path $p) {
+        $dlls += Get-ChildItem $p `
+            -Filter "Microsoft.Web.WebView2*.dll" `
+            -Recurse `
+            -ErrorAction SilentlyContinue
     }
 }
-'@
 
-Set-Content $cs $code -Encoding UTF8
+if ($dlls.Count -gt 0) {
+    Write-Host ""
+    Write-Host "WEBVIEW2 .NET TROUVE !" -ForegroundColor Green
 
-& "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" `
- /target:winexe `
- /reference:System.Windows.Forms.dll `
- /reference:System.dll `
- /out:$exe `
- $cs
-
-if (Test-Path $exe) {
-    Start-Process $exe
+    $dlls |
+        Select-Object FullName, Length |
+        Format-Table -AutoSize
 }
+else {
+    Write-Host ""
+    Write-Host "DLL WEBVIEW2 .NET NON TROUVEE" -ForegroundColor Yellow
+}
+
+Write-Host ""
+Write-Host "=== FIN TEST ==="

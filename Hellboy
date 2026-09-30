@@ -1,41 +1,28 @@
-$dir = "$env:TEMP\TestApplication"
-New-Item -ItemType Directory -Force -Path $dir | Out-Null
+$DP = "\\Uf11-a03\EIDS-EAA-PDF-STATIQUES\ACCESSIBILITE"
 
-$code = @'
-using System;
-using System.Windows.Forms;
+Write-Host "=== TEST DP ==="
+Write-Host "Utilisateur :" ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name)
+Write-Host "DP :" $DP
 
-class Program
-{
-    [STAThread]
-    static void Main()
-    {
-        MessageBox.Show(
-            "Application C# compilée avec succès !\n\nUtilisateur : " 
-            + Environment.UserName,
-            "Test environnement professionnel",
-            MessageBoxButtons.OK,
-            MessageBoxIcon.Information
-        );
-    }
+Write-Host "`n--- ACCESSIBILITE ---"
+Write-Host "Existe :" (Test-Path $DP)
+
+Write-Host "`n--- TEST LECTURE ---"
+$chrono = [Diagnostics.Stopwatch]::StartNew()
+
+try {
+    $items = @(Get-ChildItem -LiteralPath $DP -ErrorAction Stop)
+    $chrono.Stop()
+
+    Write-Host "Lecture : OK"
+    Write-Host "Elements premier niveau :" $items.Count
+    Write-Host "Temps :" $chrono.ElapsedMilliseconds "ms"
 }
-'@
-
-$cs = "$dir\TestApp.cs"
-$exe = "$dir\TestApp.exe"
-
-Set-Content -Path $cs -Value $code -Encoding UTF8
-
-& "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" `
-    /target:winexe `
-    /reference:System.Windows.Forms.dll `
-    /out:$exe `
-    $cs
-
-Write-Host ""
-Write-Host "EXE créé :" (Test-Path $exe)
-Write-Host "Emplacement :" $exe
-
-if (Test-Path $exe) {
-    Start-Process $exe
+catch {
+    $chrono.Stop()
+    Write-Host "Lecture : ECHEC"
+    Write-Host $_.Exception.Message
 }
+
+Write-Host "`n--- APERCU ---"
+$items | Select-Object -First 10 Name, PSIsContainer, LastWriteTime

@@ -1,36 +1,213 @@
-Write-Host "=== RECHERCHE WEBVIEW2 .NET ==="
+$dir = "$env:TEMP\TestApplication"
+$cs  = "$dir\TestServeur.cs"
+$exe = "$dir\TestServeur.exe"
 
-$paths = @(
-    "C:\Program Files (x86)\Microsoft\EdgeWebView",
-    "C:\Program Files\Microsoft\EdgeWebView",
-    "$env:LOCALAPPDATA\Microsoft",
-    "$env:ProgramFiles\Microsoft",
-    "${env:ProgramFiles(x86)}\Microsoft"
-)
+$code = @'
+using System;
+using System.IO;
+using System.Net;
+using System.Text;
+using System.Diagnostics;
+using System.Security.Principal;
+using System.Threading;
 
-$dlls = @()
+class Program
+{
+    static HttpListener serveur;
 
-foreach ($p in $paths) {
-    if (Test-Path $p) {
-        $dlls += Get-ChildItem $p `
-            -Filter "Microsoft.Web.WebView2*.dll" `
-            -Recurse `
-            -ErrorAction SilentlyContinue
+    static void Main()
+    {
+        string url = "http://127.0.0.1:8765/";
+
+        try
+        {
+            serveur = new HttpListener();
+            serveur.Prefixes.Add(url);
+            serveur.Start();
+
+            // Ouvre automatiquement Edge
+            Process.Start(new ProcessStartInfo(
+                @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+                url
+            ));
+
+            while (true)
+            {
+                HttpListenerContext ctx = serveur.GetContext();
+                Traiter(ctx);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Windows.Forms.MessageBox.Show(
+                ex.ToString(),
+                "Erreur serveur C#"
+            );
+        }
+    }
+
+    static void Traiter(HttpListenerContext ctx)
+    {
+        string dp = @"\\Uf11-a03\EIDS-EAA-PDF-STATIQUES\ACCESSIBILITE";
+
+        string utilisateur =
+            WindowsIdentity.GetCurrent().Name;
+
+        bool dpOK = Directory.Exists(dp);
+
+        int dossiers = 0;
+
+        try
+        {
+            dossiers = Directory.GetDirectories(dp).Length;
+        }
+        catch {}
+
+        string html = @"
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8'>
+<title>Prototype Accessibilité</title>
+
+<style>
+
+body {
+    font-family: Segoe UI, Arial;
+    background:#f4f6f9;
+    margin:0;
+}
+
+header {
+    background:#172b4d;
+    color:white;
+    padding:22px 35px;
+    font-size:24px;
+}
+
+.container {
+    max-width:1000px;
+    margin:40px auto;
+}
+
+.card {
+    background:white;
+    border-radius:12px;
+    padding:25px;
+    margin-bottom:20px;
+    box-shadow:0 3px 12px rgba(0,0,0,.10);
+}
+
+.ok {
+    color:#16803c;
+    font-weight:bold;
+}
+
+h1 {
+    margin-top:0;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+Application Accessibilité — Prototype C#
+</header>
+
+<div class='container'>
+
+<div class='card'>
+
+<h1>Connexion réussie</h1>
+
+<p>
+L'interface HTML communique directement
+avec le moteur C#.
+</p>
+
+</div>
+
+<div class='card'>
+
+<h2>Session Windows</h2>
+
+<p><b>Utilisateur :</b> " + utilisateur + @"</p>
+
+</div>
+
+<div class='card'>
+
+<h2>Dossier partagé</h2>
+
+<p>
+<b>Accessible :</b>
+<span class='ok'>" + dpOK + @"</span>
+</p>
+
+<p>
+<b>Dossiers premier niveau :</b>
+" + dossiers + @"
+</p>
+
+<p>
+<b>Chemin :</b><br>
+" + WebUtility.HtmlEncode(dp) + @"
+</p>
+
+</div>
+
+<div class='card'>
+
+<h2>Architecture testée</h2>
+
+<p>
+HTML / CSS / JavaScript
+→ HTTP local
+→ C#
+→ Dossier partagé
+</p>
+
+</div>
+
+</div>
+
+</body>
+</html>";
+
+        byte[] buffer =
+            Encoding.UTF8.GetBytes(html);
+
+        ctx.Response.ContentType =
+            "text/html; charset=utf-8";
+
+        ctx.Response.ContentLength64 =
+            buffer.Length;
+
+        ctx.Response.OutputStream.Write(
+            buffer,
+            0,
+            buffer.Length
+        );
+
+        ctx.Response.OutputStream.Close();
     }
 }
+'@
 
-if ($dlls.Count -gt 0) {
-    Write-Host ""
-    Write-Host "WEBVIEW2 .NET TROUVE !" -ForegroundColor Green
+Set-Content $cs $code -Encoding UTF8
 
-    $dlls |
-        Select-Object FullName, Length |
-        Format-Table -AutoSize
-}
-else {
-    Write-Host ""
-    Write-Host "DLL WEBVIEW2 .NET NON TROUVEE" -ForegroundColor Yellow
-}
+& "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" `
+ /target:winexe `
+ /reference:System.dll `
+ /reference:System.Windows.Forms.dll `
+ /out:$exe `
+ $cs
 
 Write-Host ""
-Write-Host "=== FIN TEST ==="
+Write-Host "Compilation :" (Test-Path $exe)
+
+if (Test-Path $exe) {
+    Start-Process $exe
+}

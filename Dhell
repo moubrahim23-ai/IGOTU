@@ -1,1 +1,128 @@
-fetch('/api/documents').then(r=>r.json()).then(x=>console.log(x))
+Windows PowerShell
+Copyright (C) Microsoft Corporation. Tous droits réservés.
+
+Installez la dernière version de PowerShell pour de nouvelles fonctionnalités et améliorations ! https://aka.ms/PSWindows
+
+PS C:\Users\OUBRAHMO> Write-Host "=== SYSTEME ==="
+=== SYSTEME ===
+PS C:\Users\OUBRAHMO> whoami
+cdm\oubrahmo
+PS C:\Users\OUBRAHMO> $PSVersionTable.PSVersion
+
+Major  Minor  Build  Revision
+-----  -----  -----  --------
+5      1      22621  7517
+
+
+PS C:\Users\OUBRAHMO> [Environment]::Is64BitOperatingSystem
+True
+PS C:\Users\OUBRAHMO>
+PS C:\Users\OUBRAHMO> Write-Host "`n=== NODE.JS ==="
+
+=== NODE.JS ===
+PS C:\Users\OUBRAHMO> node --version
+node : Le terme «node» n'est pas reconnu comme nom d'applet de commande, fonction, fichier de script ou programme
+exécutable. Vérifiez l'orthographe du nom, ou si un chemin d'accès existe, vérifiez que le chemin d'accès est correct
+et réessayez.
+Au caractère Ligne:1 : 1
++ node --version
++ ~~~~
+    + CategoryInfo          : ObjectNotFound: (node:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\OUBRAHMO> npm --version
+npm : Le terme «npm» n'est pas reconnu comme nom d'applet de commande, fonction, fichier de script ou programme
+exécutable. Vérifiez l'orthographe du nom, ou si un chemin d'accès existe, vérifiez que le chemin d'accès est correct
+et réessayez.
+Au caractère Ligne:1 : 1
++ npm --version
++ ~~~
+    + CategoryInfo          : ObjectNotFound: (npm:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\OUBRAHMO>
+PS C:\Users\OUBRAHMO> Write-Host "`n=== PYTHON ==="
+
+=== PYTHON ===
+PS C:\Users\OUBRAHMO> python --version
+Python est introuvable ; exÚcutez sans arguments Ó installer Ó partir du Microsoft Store ou dÚsactivez ce raccourci dans ParamÞtres > Applications > paramÞtres d
+PS C:\Users\OUBRAHMO> py --version
+py : Le terme «py» n'est pas reconnu comme nom d'applet de commande, fonction, fichier de script ou programme
+exécutable. Vérifiez l'orthographe du nom, ou si un chemin d'accès existe, vérifiez que le chemin d'accès est correct
+et réessayez.
+Au caractère Ligne:1 : 1
++ py --version
++ ~~
+    + CategoryInfo          : ObjectNotFound: (py:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\OUBRAHMO>
+PS C:\Users\OUBRAHMO> Write-Host "`n=== DOTNET ==="
+
+=== DOTNET ===
+PS C:\Users\OUBRAHMO> dotnet --version
+The command could not be loaded, possibly because:
+  * You intended to execute a .NET application:
+      The application '--version' does not exist or is not a managed .dll or .exe.
+  * You intended to execute a .NET SDK command:
+      No .NET SDKs were found.
+
+Download a .NET SDK:
+https://aka.ms/dotnet/download
+
+Learn about SDK resolution:
+https://aka.ms/dotnet/sdk-not-found
+PS C:\Users\OUBRAHMO>
+PS C:\Users\OUBRAHMO> Write-Host "`n=== GIT ==="
+
+=== GIT ===
+PS C:\Users\OUBRAHMO> git --version
+git : Le terme «git» n'est pas reconnu comme nom d'applet de commande, fonction, fichier de script ou programme
+exécutable. Vérifiez l'orthographe du nom, ou si un chemin d'accès existe, vérifiez que le chemin d'accès est correct
+et réessayez.
+Au caractère Ligne:1 : 1
++ git --version
++ ~~~
+    + CategoryInfo          : ObjectNotFound: (git:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\OUBRAHMO>
+PS C:\Users\OUBRAHMO> Write-Host "`n=== IIS ==="
+
+=== IIS ===
+PS C:\Users\OUBRAHMO> Get-WindowsOptionalFeature -Online -FeatureName IIS-WebServerRole -ErrorAction SilentlyContinue | Select FeatureName,State
+Get-WindowsOptionalFeature : L’opération demandée nécessite une élévation.
+Au caractère Ligne:1 : 1
++ Get-WindowsOptionalFeature -Online -FeatureName IIS-WebServerRole -Er ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [Get-WindowsOptionalFeature], COMException
+    + FullyQualifiedErrorId : Microsoft.Dism.Commands.GetWindowsOptionalFeatureCommand
+
+PS C:\Users\OUBRAHMO>
+PS C:\Users\OUBRAHMO> Write-Host "`n=== EXCEL ==="
+
+=== EXCEL ===
+PS C:\Users\OUBRAHMO> try {
+>>     $excel = New-Object -ComObject Excel.Application
+>>     Write-Host "Excel COM : OK - Version" $excel.Version
+>>     $excel.Quit()
+>> } catch {
+>>     Write-Host "Excel COM : NON"
+>> }
+Excel COM : OK - Version 16.0
+PS C:\Users\OUBRAHMO>
+PS C:\Users\OUBRAHMO> Write-Host "`n=== OUTLOOK ==="
+
+=== OUTLOOK ===
+PS C:\Users\OUBRAHMO> try {
+>>     $outlook = New-Object -ComObject Outlook.Application
+>>     Write-Host "Outlook COM : OK"
+>> } catch {
+>>     Write-Host "Outlook COM : NON"
+>> }
+Outlook COM : OK
+PS C:\Users\OUBRAHMO>
+PS C:\Users\OUBRAHMO> Write-Host "`n=== EXECUTION POWERSHELL ==="
+
+=== EXECUTION POWERSHELL ===
+PS C:\Users\OUBRAHMO> Get-ExecutionPolicy -List

@@ -1,0 +1,41 @@
+Write-Host "=== SYSTEME ==="
+whoami
+$PSVersionTable.PSVersion
+[Environment]::Is64BitOperatingSystem
+
+Write-Host "`n=== NODE.JS ==="
+node --version
+npm --version
+
+Write-Host "`n=== PYTHON ==="
+python --version
+py --version
+
+Write-Host "`n=== DOTNET ==="
+dotnet --version
+
+Write-Host "`n=== GIT ==="
+git --version
+
+Write-Host "`n=== IIS ==="
+Get-WindowsOptionalFeature -Online -FeatureName IIS-WebServerRole -ErrorAction SilentlyContinue | Select FeatureName,State
+
+Write-Host "`n=== EXCEL ==="
+try {
+    $excel = New-Object -ComObject Excel.Application
+    Write-Host "Excel COM : OK - Version" $excel.Version
+    $excel.Quit()
+} catch {
+    Write-Host "Excel COM : NON"
+}
+
+Write-Host "`n=== OUTLOOK ==="
+try {
+    $outlook = New-Object -ComObject Outlook.Application
+    Write-Host "Outlook COM : OK"
+} catch {
+    Write-Host "Outlook COM : NON"
+}
+
+Write-Host "`n=== EXECUTION POWERSHELL ==="
+Get-ExecutionPolicy -List

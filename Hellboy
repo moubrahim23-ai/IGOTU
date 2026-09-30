@@ -1,87 +1,41 @@
-Write-Host "`n========== TEST 2 : ENVIRONNEMENT =========="
+$dir = "$env:TEMP\TestApplication"
+New-Item -ItemType Directory -Force -Path $dir | Out-Null
 
-Write-Host "`n--- EXECUTION POLICY ---"
-Get-ExecutionPolicy
-Get-ExecutionPolicy -List
+$code = @'
+using System;
+using System.Windows.Forms;
 
-Write-Host "`n--- .NET FRAMEWORK ---"
-try {
-    [System.Environment]::Version
-    Write-Host ".NET Framework utilisable : OUI"
-} catch {
-    Write-Host ".NET Framework utilisable : NON"
+class Program
+{
+    [STAThread]
+    static void Main()
+    {
+        MessageBox.Show(
+            "Application C# compilée avec succès !\n\nUtilisateur : " 
+            + Environment.UserName,
+            "Test environnement professionnel",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Information
+        );
+    }
 }
+'@
 
-Write-Host "`n--- HTTP LISTENER ---"
-try {
-    $x = New-Object System.Net.HttpListener
-    Write-Host "HttpListener : OUI"
-    $x.Close()
-} catch {
-    Write-Host "HttpListener : NON"
-    Write-Host $_.Exception.Message
+$cs = "$dir\TestApp.cs"
+$exe = "$dir\TestApp.exe"
+
+Set-Content -Path $cs -Value $code -Encoding UTF8
+
+& "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" `
+    /target:winexe `
+    /reference:System.Windows.Forms.dll `
+    /out:$exe `
+    $cs
+
+Write-Host ""
+Write-Host "EXE créé :" (Test-Path $exe)
+Write-Host "Emplacement :" $exe
+
+if (Test-Path $exe) {
+    Start-Process $exe
 }
-
-Write-Host "`n--- FILESYSTEMWATCHER ---"
-try {
-    $w = New-Object System.IO.FileSystemWatcher
-    Write-Host "FileSystemWatcher : OUI"
-    $w.Dispose()
-} catch {
-    Write-Host "FileSystemWatcher : NON"
-}
-
-Write-Host "`n--- SQLITE ---"
-Get-Command sqlite3 -ErrorAction SilentlyContinue
-if (-not (Get-Command sqlite3 -ErrorAction SilentlyContinue)) {
-    Write-Host "SQLite CLI : NON"
-}
-
-Write-Host "`n--- CURL ---"
-curl.exe --version
-
-Write-Host "`n--- WSCRIPT / CSCRIPT ---"
-where.exe wscript
-where.exe cscript
-
-Write-Host "`n--- MSHTA ---"
-where.exe mshta
-
-Write-Host "`n--- EDGE ---"
-where.exe msedge
-Test-Path "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
-Test-Path "C:\Program Files\Microsoft\Edge\Application\msedge.exe"
-
-Write-Host "`n--- WEBVIEW2 ---"
-$wv = Get-ChildItem "C:\Program Files (x86)\Microsoft\EdgeWebView\Application" -ErrorAction SilentlyContinue
-if ($wv) {
-    Write-Host "WebView2 : OUI"
-    $wv.Name
-} else {
-    Write-Host "WebView2 : NON ou emplacement différent"
-}
-
-Write-Host "`n--- COMPILATEUR C# WINDOWS ---"
-$csc1 = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-$csc2 = "$env:WINDIR\Microsoft.NET\Framework\v4.0.30319\csc.exe"
-
-Write-Host "CSC 64 bits :" (Test-Path $csc1)
-Write-Host "CSC 32 bits :" (Test-Path $csc2)
-
-Write-Host "`n--- WINDOWS FORMS ---"
-try {
-    Add-Type -AssemblyName System.Windows.Forms
-    Write-Host "Windows Forms : OUI"
-} catch {
-    Write-Host "Windows Forms : NON"
-}
-
-Write-Host "`n--- WPF ---"
-try {
-    Add-Type -AssemblyName PresentationFramework
-    Write-Host "WPF : OUI"
-} catch {
-    Write-Host "WPF : NON"
-}
-
-Write-Host "`n========== FIN TEST 2 =========="

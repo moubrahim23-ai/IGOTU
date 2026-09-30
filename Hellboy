@@ -1,11 +1,10 @@
 $dir = "$env:TEMP\TestApplication"
-$cs  = "$dir\TestReseau.cs"
-$exe = "$dir\TestReseau.exe"
+$cs  = "$dir\TestEcriture.cs"
+$exe = "$dir\TestEcriture.exe"
 
 $code = @'
 using System;
 using System.IO;
-using System.Diagnostics;
 using System.Security.Principal;
 using System.Windows.Forms;
 
@@ -15,54 +14,70 @@ class Program
     static void Main()
     {
         string dp = @"\\Uf11-a03\EIDS-EAA-PDF-STATIQUES\ACCESSIBILITE";
+        string testDir = Path.Combine(dp, "__TEST_APPLICATION_OUBRAHMO__");
+        string fichier1 = Path.Combine(testDir, "test.txt");
+        string fichier2 = Path.Combine(testDir, "test_renomme.txt");
+
+        string resultat = "";
 
         try
         {
-            Stopwatch sw = Stopwatch.StartNew();
+            resultat += "Utilisateur : " +
+                WindowsIdentity.GetCurrent().Name + "\n\n";
 
-            string[] dossiers = Directory.GetDirectories(dp);
+            Directory.CreateDirectory(testDir);
+            resultat += "1. Creation dossier : OK\n";
 
-            sw.Stop();
-
-            string utilisateur =
-                WindowsIdentity.GetCurrent().Name;
-
-            string message =
-                "TEST C# -> DP RESEAU REUSSI\n\n" +
-                "Utilisateur : " + utilisateur + "\n\n" +
-                "DP accessible : " + Directory.Exists(dp) + "\n" +
-                "Dossiers premier niveau : " + dossiers.Length + "\n" +
-                "Temps de lecture : " + sw.ElapsedMilliseconds + " ms\n\n" +
-                "Exemples :\n";
-
-            int max = Math.Min(6, dossiers.Length);
-
-            for (int i = 0; i < max; i++)
-            {
-                message += "- " + Path.GetFileName(dossiers[i]) + "\n";
-            }
-
-            MessageBox.Show(
-                message,
-                "Diagnostic application C#",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information
+            File.WriteAllText(
+                fichier1,
+                "Test application C# - " + DateTime.Now.ToString()
             );
+            resultat += "2. Ecriture fichier : OK\n";
+
+            string contenu = File.ReadAllText(fichier1);
+            resultat += "3. Lecture fichier : OK\n";
+
+            File.Move(fichier1, fichier2);
+            resultat += "4. Renommage fichier : OK\n";
+
+            File.Delete(fichier2);
+            resultat += "5. Suppression fichier : OK\n";
+
+            Directory.Delete(testDir);
+            resultat += "6. Suppression dossier : OK\n";
+
+            resultat += "\nTEST COMPLET REUSSI";
         }
         catch (Exception ex)
         {
-            MessageBox.Show(
-                ex.ToString(),
-                "ERREUR",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Error
-            );
+            resultat += "\n\nECHEC :\n" + ex.Message;
+
+            // Nettoyage de sécurité
+            try
+            {
+                if (File.Exists(fichier1))
+                    File.Delete(fichier1);
+
+                if (File.Exists(fichier2))
+                    File.Delete(fichier2);
+
+                if (Directory.Exists(testDir))
+                    Directory.Delete(testDir, true);
+            }
+            catch {}
         }
+
+        MessageBox.Show(
+            resultat,
+            "Test droits réseau C#",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Information
+        );
     }
 }
 '@
 
-Set-Content -Path $cs -Value $code -Encoding UTF8
+Set-Content $cs $code -Encoding UTF8
 
 & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" `
  /target:winexe `
@@ -70,8 +85,6 @@ Set-Content -Path $cs -Value $code -Encoding UTF8
  /reference:System.dll `
  /out:$exe `
  $cs
-
-Write-Host "Compilation :" (Test-Path $exe)
 
 if (Test-Path $exe) {
     Start-Process $exe
